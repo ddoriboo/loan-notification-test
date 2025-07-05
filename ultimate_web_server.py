@@ -39,10 +39,13 @@ class UltimateHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     def handle_generate_api(self):
         """문구 생성 API"""
         try:
+            print("✨ 문구 생성 API 요청 처리 시작...")
+            
             # 요청 데이터 읽기
             content_length = int(self.headers.get('Content-Length', 0))
             post_data = self.rfile.read(content_length)
             data = json.loads(post_data.decode('utf-8'))
+            print(f"📝 받은 요청 데이터: {data}")
             
             # 생성기 초기화 (첫 요청 시)
             if not hasattr(self.server, 'llm_generator'):
@@ -63,10 +66,12 @@ class UltimateHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 'target_audience': data.get('target', '고객')
             }
             
-            print(f"📝 생성 요청: {user_request}")
+            print(f"🎯 처리할 요청: {user_request}")
             
             # LLM 생성
+            print("🤖 LLM 문구 생성 시작...")
             llm_result = generator.generate_with_llm(user_request)
+            print("✅ LLM 문구 생성 완료")
             
             # 기존 메시지 매칭
             existing_matches = generator.get_relevant_high_performance_messages(user_request)
@@ -112,10 +117,13 @@ class UltimateHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.end_headers()
             
             self.wfile.write(json.dumps(response, ensure_ascii=False, indent=2).encode('utf-8'))
+            print("✅ 문구 생성 API 처리 완료")
             
         except Exception as e:
-            print(f"❌ 생성 API 오류: {str(e)}")
-            self.send_error_response(str(e))
+            print(f"❌ 문구 생성 API 에러: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            self.send_error_response(f"문구 생성 실패: {str(e)}")
     
     def handle_timing_api(self):
         """타이밍 분석 API"""
