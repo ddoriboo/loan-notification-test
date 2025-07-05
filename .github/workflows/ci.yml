@@ -37,21 +37,18 @@ jobs:
 
     - name: Test basic functionality
       run: |
-        # Basic import tests
-        python -c "from simple_analyzer import SimpleNotificationAnalyzer; print('✅ Import test passed')"
-        python -c "from real_llm_generator import RealLLMGenerator; print('✅ LLM generator import passed')"
-        python -c "from enhanced_timing_analyzer import EnhancedTimingAnalyzer; print('✅ Timing analyzer import passed')"
-
-    - name: Test data analysis
+        # Basic import tests for current architecture
+        python -c "from upload_analyzer import UploadAnalyzer; print('✅ Upload analyzer import passed')"
+        python -c "import upload_web_server; print('✅ Web server import passed')"
+        
+    - name: Test core functionality
       run: |
-        # Test with sample data if available
-        if [ -f "202507_.csv" ]; then
-          python -c "
-          from simple_analyzer import SimpleNotificationAnalyzer
-          analyzer = SimpleNotificationAnalyzer('202507_.csv')
-          print('✅ Data analysis test passed')
-          "
-        fi
+        # Test core analyzer functionality
+        python -c "
+        from upload_analyzer import analyzer
+        print('✅ Global analyzer instance available')
+        print(f'📊 Analyzer ready: {hasattr(analyzer, \"analyze_uploaded_csv\")}')
+        "
 
   security:
     runs-on: ubuntu-latest
@@ -86,11 +83,17 @@ jobs:
 
     - name: Test Docker image
       run: |
-        # Test that the container starts properly
+        # Test that the container starts properly with upload server
         docker run -d --name test-container -p 8080:8080 ai-message-generator:latest
-        sleep 10
-        # Basic health check
-        curl -f http://localhost:8080/ || exit 1
+        sleep 15
+        # Basic health check - expect upload interface
+        if curl -f http://localhost:8080/ | grep -q "CSV 업로드"; then
+          echo "✅ Upload server responding correctly"
+        else
+          echo "❌ Upload server not responding as expected"
+          docker logs test-container
+          exit 1
+        fi
         docker stop test-container
         docker rm test-container
 
