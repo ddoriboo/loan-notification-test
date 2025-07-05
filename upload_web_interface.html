@@ -666,6 +666,9 @@
         
         // 대시보드 업데이트
         function updateDashboard(data) {
+            // 전역 변수에 데이터 저장 (요일별 차트 업데이트용)
+            window.currentDashboardData = data;
+            
             // 통계 요약
             const summary = data.summary;
             const statsHtml = `
@@ -688,25 +691,36 @@
             `;
             document.getElementById('statsOverview').innerHTML = statsHtml;
             
-            // 요일별 차트
-            const weekdayData = data.time_analysis;
-            const weekdayHtml = Object.entries(weekdayData).map(([day, data]) => {
-                const width = (data.avg_click_rate / 15) * 100;
-                return `
-                    <div class="keyword-bar">
-                        <div class="keyword-name">${day}요일</div>
-                        <div class="keyword-progress">
-                            <div class="keyword-fill" style="width: ${width}%">
-                                ${data.avg_click_rate.toFixed(1)}%
+            // 요일별 차트 업데이트 (초기 로드시는 항상 summary 탭이므로 업데이트)
+            const summaryTab = document.getElementById('summary');
+            const weekdayChartElement = document.getElementById('weekdayChart');
+            const isInitialLoad = !summaryTab.classList.contains('active'); // 초기 로드시는 active 클래스가 아직 없음
+            
+            if ((summaryTab && summaryTab.classList.contains('active')) || isInitialLoad) {
+                console.log('요일별 차트 업데이트 중 (summary 탭 활성 또는 초기 로드)');
+                if (weekdayChartElement) {
+                    const weekdayData = data.time_analysis;
+                    const weekdayHtml = Object.entries(weekdayData).map(([day, data]) => {
+                        const width = (data.avg_click_rate / 15) * 100;
+                        return `
+                            <div class="keyword-bar">
+                                <div class="keyword-name">${day}요일</div>
+                                <div class="keyword-progress">
+                                    <div class="keyword-fill" style="width: ${width}%">
+                                        ${data.avg_click_rate.toFixed(1)}%
+                                    </div>
+                                </div>
+                                <div style="width: 80px; text-align: right; color: #666;">
+                                    ${data.count}건
+                                </div>
                             </div>
-                        </div>
-                        <div style="width: 80px; text-align: right; color: #666;">
-                            ${data.count}건
-                        </div>
-                    </div>
-                `;
-            }).join('');
-            document.getElementById('weekdayChart').innerHTML = weekdayHtml;
+                        `;
+                    }).join('');
+                    weekdayChartElement.innerHTML = weekdayHtml;
+                }
+            } else {
+                console.log('요일별 차트 업데이트 생략 (다른 탭 활성)');
+            }
             
             // 고성과 메시지 (집계된 데이터 사용)
             let messagesHtml = '';
@@ -887,6 +901,9 @@
             if (tabName !== 'summary') {
                 // summary 탭 내용을 다른 탭 상단에 표시
                 showSummaryInOtherTabs(tabName);
+            } else {
+                // summary 탭 활성화시 요일별 차트 업데이트
+                updateWeekdayChart();
             }
             
             // insights 탭 선택시 생성 버튼 표시
@@ -919,14 +936,51 @@
             });
         }
         
+        // 요일별 차트 업데이트 (별도 함수)
+        function updateWeekdayChart() {
+            if (!window.currentDashboardData || !window.currentDashboardData.time_analysis) {
+                console.log('요일별 차트 데이터 없음');
+                return;
+            }
+            
+            console.log('요일별 차트 업데이트 실행');
+            const weekdayChartElement = document.getElementById('weekdayChart');
+            if (!weekdayChartElement) {
+                console.log('weekdayChart 요소 없음');
+                return;
+            }
+            
+            const weekdayData = window.currentDashboardData.time_analysis;
+            const weekdayHtml = Object.entries(weekdayData).map(([day, data]) => {
+                const width = (data.avg_click_rate / 15) * 100;
+                return `
+                    <div class="keyword-bar">
+                        <div class="keyword-name">${day}요일</div>
+                        <div class="keyword-progress">
+                            <div class="keyword-fill" style="width: ${width}%">
+                                ${data.avg_click_rate.toFixed(1)}%
+                            </div>
+                        </div>
+                        <div style="width: 80px; text-align: right; color: #666;">
+                            ${data.count}건
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            weekdayChartElement.innerHTML = weekdayHtml;
+        }
+        
         // 다른 탭에서 요약 정보 표시
         function showSummaryInOtherTabs(tabName) {
             if (!analysisData) return;
+            
+            console.log(`showSummaryInOtherTabs 호출됨 - 탭: ${tabName}`);
             
             // 기존 요약 정보 제거
             const existingSummary = document.querySelector('.tab-summary-overlay');
             if (existingSummary) {
                 existingSummary.remove();
+                console.log('기존 요약 정보 제거됨');
             }
             
             // 요약 정보 생성
