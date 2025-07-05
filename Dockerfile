@@ -37,5 +37,5 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:8080/ || exit 1
 
-# Run the application
-CMD ["python3", "ultimate_web_server.py"]
+# Run the upload-based application
+CMD ["python3", "upload_web_server.py"]
