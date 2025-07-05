@@ -112,7 +112,7 @@ class UploadAnalyzer:
         return normalized
     
     def process_row(self, row):
-        """행 데이터 처리 및 타입 변환"""
+        """행 데이터 처리 및 타입 변환 (JSON serializable)"""
         try:
             processed = {}
             
@@ -128,28 +128,36 @@ class UploadAnalyzer:
             processed['발송 문구'] = str(row.get('발송 문구', '')).strip()
             processed['서비스명'] = str(row.get('서비스명', '')).strip()
             
-            # 날짜 처리
+            # 날짜 처리 (JSON serializable 문자열로 저장)
             date_str = str(row.get('발송일', '')).strip()
             if date_str:
                 try:
                     # 다양한 날짜 형식 지원
+                    parsed_date = None
                     for date_format in ['%Y-%m-%d', '%Y.%m.%d', '%Y/%m/%d']:
                         try:
-                            processed['발송일'] = datetime.strptime(date_str, date_format)
+                            parsed_date = datetime.strptime(date_str, date_format)
                             break
                         except ValueError:
                             continue
+                    
+                    if parsed_date:
+                        processed['발송일'] = parsed_date.strftime('%Y-%m-%d')  # 문자열로 저장
+                        processed['발송일_객체'] = parsed_date  # 내부 계산용 (JSON에서 제외)
                     else:
-                        processed['발송일'] = datetime.now()
+                        processed['발송일'] = datetime.now().strftime('%Y-%m-%d')
+                        processed['발송일_객체'] = datetime.now()
                 except:
-                    processed['발송일'] = datetime.now()
+                    processed['발송일'] = datetime.now().strftime('%Y-%m-%d')
+                    processed['발송일_객체'] = datetime.now()
             else:
-                processed['발송일'] = datetime.now()
+                processed['발송일'] = datetime.now().strftime('%Y-%m-%d')
+                processed['발송일_객체'] = datetime.now()
             
             # 요일 처리
             weekday = str(row.get('요일', '')).strip()
             if not weekday:
-                weekday_num = processed['발송일'].weekday()
+                weekday_num = processed['발송일_객체'].weekday()
                 weekdays = ['월', '화', '수', '목', '금', '토', '일']
                 weekday = weekdays[weekday_num]
             processed['요일'] = weekday
@@ -174,7 +182,7 @@ class UploadAnalyzer:
     def analyze_patterns(self):
         """성과 패턴 분석"""
         try:
-            # 서비스별 분석
+            # 서비스별 분석 (JSON serializable)
             service_analysis = {}
             for row in self.data:
                 service = row.get('서비스명', '기타')
@@ -185,7 +193,17 @@ class UploadAnalyzer:
                         'count': 0
                     }
                 
-                service_analysis[service]['messages'].append(row)
+                # datetime 객체 제외한 정리된 메시지 데이터 추가
+                clean_row = {}
+                for key, value in row.items():
+                    if key == '발송일_객체':
+                        continue  # 내부 계산용 객체 제외
+                    elif isinstance(value, (int, float, str, bool)) or value is None:
+                        clean_row[key] = value
+                    else:
+                        clean_row[key] = str(value)
+                
+                service_analysis[service]['messages'].append(clean_row)
                 service_analysis[service]['total_clicks'] += row.get('클릭율', 0)
                 service_analysis[service]['count'] += 1
             
@@ -195,11 +213,15 @@ class UploadAnalyzer:
                 total = service_analysis[service]['total_clicks']
                 service_analysis[service]['avg_click_rate'] = total / count if count > 0 else 0
                 
-                # 상위 메시지만 유지
-                service_analysis[service]['messages'].sort(
-                    key=lambda x: x.get('클릭율', 0), reverse=True
-                )
-                service_analysis[service]['messages'] = service_analysis[service]['messages'][:5]
+                # 상위 메시지만 유지 (안전한 정렬)
+                try:
+                    service_analysis[service]['messages'].sort(
+                        key=lambda x: float(x.get('클릭율', 0)), reverse=True
+                    )
+                    service_analysis[service]['messages'] = service_analysis[service]['messages'][:5]
+                except Exception as e:
+                    print(f"⚠️ 서비스 {service} 메시지 정렬 실패: {e}")
+                    service_analysis[service]['messages'] = service_analysis[service]['messages'][:5]
             
             # 키워드 분석
             keywords = ['혜택', '최대', '할인', '금리', '한도', '대출', '비교', '갈아타기', '확인', '신청']
@@ -257,12 +279,53 @@ class UploadAnalyzer:
             }
     
     def get_dashboard_data(self):
-        """대시보드용 데이터 반환"""
+        """대시보드용 데이터 반환 (JSON serializable)"""
         if not self.analysis_complete:
             return {
                 'success': False,
                 'error': '먼저 CSV 파일을 업로드하고 분석을 완료해주세요.'
             }
+        
+        # JSON serializable 형태로 변환
+        clean_high_performance = []
+        for msg in self.high_performance_messages[:10]:
+            clean_msg = {}
+            for key, value in msg.items():
+                # datetime 객체 제외 및 안전한 변환
+                if key == '발송일_객체':
+                    continue  # 내부 계산용 객체 제외
+                elif key == '발송일' and hasattr(value, 'strftime'):
+                    clean_msg[key] = value.strftime('%Y-%m-%d')
+                elif isinstance(value, (int, float, str, bool)) or value is None:
+                    clean_msg[key] = value
+                else:
+                    # 기타 객체는 문자열로 변환
+                    clean_msg[key] = str(value)
+            clean_high_performance.append(clean_msg)
+        
+        # 서비스 분석 데이터 정리
+        clean_service_analysis = {}
+        service_analysis = self.performance_patterns.get('service_analysis', {})
+        for service, data in service_analysis.items():
+            clean_service_data = {
+                'count': data.get('count', 0),
+                'avg_click_rate': data.get('avg_click_rate', 0),
+                'messages': []
+            }
+            
+            # 메시지 데이터 정리
+            for msg in data.get('messages', []):
+                clean_msg = {}
+                for key, value in msg.items():
+                    if key == '발송일_객체':
+                        continue
+                    elif isinstance(value, (int, float, str, bool)) or value is None:
+                        clean_msg[key] = value
+                    else:
+                        clean_msg[key] = str(value)
+                clean_service_data['messages'].append(clean_msg)
+            
+            clean_service_analysis[service] = clean_service_data
         
         return {
             'success': True,
@@ -273,10 +336,10 @@ class UploadAnalyzer:
                     'best_click_rate': self.performance_patterns.get('best_click_rate', 0),
                     'high_performance_count': len(self.high_performance_messages)
                 },
-                'service_analysis': self.performance_patterns.get('service_analysis', {}),
+                'service_analysis': clean_service_analysis,
                 'keyword_analysis': self.performance_patterns.get('keyword_analysis', {}),
                 'time_analysis': self.performance_patterns.get('time_analysis', {}),
-                'high_performance_messages': self.high_performance_messages[:10]
+                'high_performance_messages': clean_high_performance
             }
         }
     

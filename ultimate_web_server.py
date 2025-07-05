@@ -21,21 +21,19 @@ class UltimateHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     
     def do_GET(self):
         if self.path == '/':
-            self.path = '/upload_web_interface.html'
+            self.path = '/ultimate_interface.html'
         return super().do_GET()
     
     def do_POST(self):
-        if self.path == '/api/upload-csv':
-            self.handle_upload_csv()
-        elif self.path == '/api/dashboard':
-            self.handle_dashboard_new()
-        elif self.path == '/api/generate':
-            self.handle_generate_new()
         # 기존 API들 (하위 호환성)
-        elif self.path == '/api/timing':
+        if self.path == '/api/timing':
             self.handle_timing_api()
         elif self.path == '/api/compare':
             self.handle_compare_api()
+        elif self.path == '/api/generate':
+            self.handle_generate_api()
+        elif self.path == '/api/dashboard':
+            self.handle_dashboard_api()
         else:
             self.send_error(404)
     
@@ -258,16 +256,37 @@ class UltimateHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             traceback.print_exc()
             self.send_error_response(f"대시보드 데이터 생성 실패: {str(e)}")
     
-    def send_json_response(self, data):
-        """JSON 응답 전송"""
-        self.send_response(200)
-        self.send_header('Content-Type', 'application/json')
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'POST, GET, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
-        self.end_headers()
-        
-        self.wfile.write(json.dumps(data, ensure_ascii=False, indent=2).encode('utf-8'))
+    def send_json_response(self, data, status=200):
+        """JSON 응답 전송 (datetime 안전 처리)"""
+        try:
+            self.send_response(status)
+            self.send_header('Content-Type', 'application/json; charset=utf-8')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Access-Control-Allow-Methods', 'POST, GET, OPTIONS')
+            self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+            self.end_headers()
+            
+            # JSON serialization with datetime handling
+            json_str = json.dumps(data, ensure_ascii=False, indent=2, default=str)
+            self.wfile.write(json_str.encode('utf-8'))
+            
+        except Exception as e:
+            print(f"❌ JSON 응답 전송 실패: {str(e)}")
+            # Fallback: 기본 에러 응답
+            try:
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json; charset=utf-8')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                
+                error_data = {
+                    'success': False,
+                    'error': f"JSON 직렬화 실패: {str(e)}"
+                }
+                fallback_json = json.dumps(error_data, ensure_ascii=False)
+                self.wfile.write(fallback_json.encode('utf-8'))
+            except:
+                pass  # 최종 fallback 실패시 무시
     
     def send_error_response(self, error_message):
         """에러 응답 전송"""
