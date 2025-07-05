@@ -16,7 +16,8 @@ from enhanced_timing_analyzer import EnhancedTimingAnalyzer
 
 class UltimateHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, directory="/mnt/c/Users/USER/Documents/notification", **kwargs)
+        # Use current directory instead of hardcoded path
+        super().__init__(*args, **kwargs)
     
     def do_GET(self):
         if self.path == '/':
@@ -241,8 +242,15 @@ class UltimateHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         self.send_header('Access-Control-Allow-Headers', 'Content-Type')
         self.end_headers()
 
-def run_ultimate_server(port=8080):
+def run_ultimate_server(port=None):
     """Ultimate 서버 실행"""
+    # Railway sets PORT environment variable
+    if port is None:
+        port = int(os.environ.get('PORT', '8080'))
+    
+    # Get host from environment or use default
+    host = os.environ.get('SERVER_HOST', '0.0.0.0')
+    
     print("🚀 Ultimate AI 문구 생성기 서버 시작!")
     print("="*60)
     print("🎯 통합 기능:")
@@ -252,12 +260,12 @@ def run_ultimate_server(port=8080):
     print("  • 성과 비교 분석")
     print("  • 실시간 생성 근거 설명")
     print("="*60)
-    print(f"📍 URL: http://localhost:{port}")
+    print(f"📍 Server: {host}:{port}")
     print("🌐 브라우저에서 접속하세요!")
     print("🔄 Ctrl+C로 종료")
     print("="*60)
     
-    with socketserver.TCPServer(("", port), UltimateHTTPRequestHandler) as httpd:
+    with socketserver.TCPServer((host, port), UltimateHTTPRequestHandler) as httpd:
         try:
             httpd.serve_forever()
         except KeyboardInterrupt:
