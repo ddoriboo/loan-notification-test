@@ -284,7 +284,7 @@ class NotificationAnalyzer:
 
 if __name__ == "__main__":
     # 분석 실행
-    analyzer = NotificationAnalyzer("/mnt/c/Users/USER/Documents/notification/202507_.csv")
+    analyzer = NotificationAnalyzer("202507_.csv")
     results = analyzer.generate_report()
     
     print("\n🎯 서비스 활용 가이드:")

@@ -98,7 +98,7 @@ def analyze():
     
     if not analyzer:
         try:
-            analyzer = SimpleNotificationAnalyzer("/mnt/c/Users/USER/Documents/notification/202507_.csv")
+            analyzer = SimpleNotificationAnalyzer("202507_.csv")
             analysis_results = analyzer.generate_final_report()
         except Exception as e:
             return f"분석 중 오류 발생: {str(e)}"

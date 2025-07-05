@@ -30,7 +30,7 @@ def generate_messages():
         # 첫 요청 시 생성기 초기화
         if generator is None:
             print("🔄 AI 생성기 초기화 중...")
-            generator = MessageAIGenerator("/mnt/c/Users/USER/Documents/notification/202507_.csv")
+            generator = MessageAIGenerator("202507_.csv")
             print("✅ 초기화 완료!")
         
         # 요청 데이터 파싱
@@ -89,7 +89,7 @@ def analyze_message():
         message = data.get('message', '')
         
         if generator is None:
-            generator = MessageAIGenerator("/mnt/c/Users/USER/Documents/notification/202507_.csv")
+            generator = MessageAIGenerator("202507_.csv")
         
         # 메시지 특성 분석
         features = generator.extract_message_features(message)

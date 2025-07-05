@@ -1097,7 +1097,7 @@ if __name__ == "__main__":
     # HTML 인터페이스 생성
     html_content = create_web_interface()
     
-    with open("/mnt/c/Users/USER/Documents/notification/ai_message_generator.html", 'w', encoding='utf-8') as f:
+    with open("ai_message_generator.html", 'w', encoding='utf-8') as f:
         f.write(html_content)
     
     print("✅ AI 문구 생성기 HTML 인터페이스가 생성되었습니다!")
@@ -1107,7 +1107,7 @@ if __name__ == "__main__":
     # 백엔드 서비스도 테스트
     print("\n🔍 백엔드 서비스 테스트...")
     
-    generator = MessageAIGenerator("/mnt/c/Users/USER/Documents/notification/202507_.csv")
+    generator = MessageAIGenerator("202507_.csv")
     
     # 테스트 입력
     test_input = {

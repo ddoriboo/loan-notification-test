@@ -38,7 +38,7 @@ class CustomHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             # MessageAIGenerator 초기화 (첫 요청 시)
             if not hasattr(self.server, 'generator'):
                 print("🔄 AI 생성기 초기화 중...")
-                self.server.generator = MessageAIGenerator("/mnt/c/Users/USER/Documents/notification/202507_.csv")
+                self.server.generator = MessageAIGenerator("202507_.csv")
                 print("✅ 초기화 완료!")
             
             generator = self.server.generator

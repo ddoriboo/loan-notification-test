@@ -804,7 +804,7 @@ class VisualizationGenerator:
 if __name__ == "__main__":
     print("🎨 분석 결과 시각화 및 문서 생성 중...")
     
-    visualizer = VisualizationGenerator("/mnt/c/Users/USER/Documents/notification/202507_.csv")
+    visualizer = VisualizationGenerator("202507_.csv")
     
     # 콘솔 차트 표시
     visualizer.show_console_charts()

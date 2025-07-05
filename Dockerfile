@@ -19,8 +19,11 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
+# Copy application code and data
 COPY . .
+
+# Ensure data file exists (Railway deployment)
+RUN if [ ! -f "202507_.csv" ]; then echo "WARNING: 202507_.csv not found. The app will run with limited functionality." > /tmp/warning.log; fi
 
 # Create non-root user for security
 RUN adduser --disabled-password --gecos '' appuser && \

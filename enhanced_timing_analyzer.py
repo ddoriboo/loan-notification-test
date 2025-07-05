@@ -379,7 +379,7 @@ class EnhancedTimingAnalyzer:
 if __name__ == "__main__":
     print("🕐 향상된 타이밍 분석 시작...")
     
-    analyzer = EnhancedTimingAnalyzer("/mnt/c/Users/USER/Documents/notification/202507_.csv")
+    analyzer = EnhancedTimingAnalyzer("202507_.csv")
     report = analyzer.generate_timing_report()
     
     print("\n🎯 핵심 타이밍 인사이트:")

@@ -45,7 +45,7 @@ class UltimateHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             if not hasattr(self.server, 'llm_generator'):
                 print("🚀 Ultimate AI 생성기 초기화 중...")
                 self.server.llm_generator = RealLLMGenerator(
-                    "/mnt/c/Users/USER/Documents/notification/202507_.csv"
+                    "202507_.csv"
                 )
                 print("✅ 초기화 완료!")
             
@@ -124,7 +124,7 @@ class UltimateHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             # 타이밍 분석기 초기화
             if not hasattr(self.server, 'timing_analyzer'):
                 self.server.timing_analyzer = EnhancedTimingAnalyzer(
-                    "/mnt/c/Users/USER/Documents/notification/202507_.csv"
+                    "202507_.csv"
                 )
             
             analyzer = self.server.timing_analyzer
@@ -265,8 +265,5 @@ def run_ultimate_server(port=8080):
             httpd.server_close()
 
 if __name__ == "__main__":
-    # 작업 디렉토리 변경
-    os.chdir("/mnt/c/Users/USER/Documents/notification")
-    
     # 서버 시작
     run_ultimate_server()

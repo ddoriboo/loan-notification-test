@@ -419,5 +419,5 @@ class SimpleNotificationAnalyzer:
 
 if __name__ == "__main__":
     # 분석 실행
-    analyzer = SimpleNotificationAnalyzer("/mnt/c/Users/USER/Documents/notification/202507_.csv")
+    analyzer = SimpleNotificationAnalyzer("202507_.csv")
     results = analyzer.generate_final_report()

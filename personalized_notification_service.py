@@ -477,5 +477,5 @@ class PersonalizedNotificationService:
                 continue
 
 if __name__ == "__main__":
-    service = PersonalizedNotificationService("/mnt/c/Users/USER/Documents/notification/202507_.csv")
+    service = PersonalizedNotificationService("202507_.csv")
     service.run()

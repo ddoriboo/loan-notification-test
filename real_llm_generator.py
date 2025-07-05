@@ -409,7 +409,7 @@ def demo_real_llm_generator():
     print("="*50)
     
     # 생성기 초기화 (API 키 없이 시뮬레이션)
-    generator = RealLLMGenerator("/mnt/c/Users/USER/Documents/notification/202507_.csv")
+    generator = RealLLMGenerator("202507_.csv")
     
     # 테스트 요청
     test_request = {
