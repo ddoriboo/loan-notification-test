@@ -88,17 +88,27 @@ class RealLLMGenerator:
         for keyword in keywords:
             keyword_messages = [row for row in self.data if keyword in row['발송 문구']]
             if keyword_messages:
-                avg_rate = statistics.mean([row['클릭율'] for row in keyword_messages])
-                keyword_performance[keyword] = {
-                    'avg_rate': avg_rate,
-                    'count': len(keyword_messages),
-                    'best_message': max(keyword_messages, key=lambda x: x['클릭율'])
-                }
+                # 유효한 클릭율 값만 필터링
+                valid_rates = [float(row['클릭율']) for row in keyword_messages 
+                             if row.get('클릭율') is not None and str(row.get('클릭율')).replace('.','').isdigit()]
+                if valid_rates:
+                    avg_rate = statistics.mean(valid_rates)
+                    keyword_performance[keyword] = {
+                        'avg_rate': avg_rate,
+                        'count': len(keyword_messages),
+                        'best_message': max(keyword_messages, key=lambda x: float(x.get('클릭율', 0)))
+                    }
+        
+        # 전체 평균 클릭률 계산 (안전하게)
+        all_valid_rates = [float(row['클릭율']) for row in self.data 
+                          if row.get('클릭율') is not None and str(row.get('클릭율')).replace('.','').isdigit()]
+        overall_avg = statistics.mean(all_valid_rates) if all_valid_rates else 0
         
         self.performance_patterns = {
             'service_best': service_best,
             'keyword_performance': keyword_performance,
-            'overall_avg': statistics.mean([row['클릭율'] for row in self.data])
+            'overall_avg': overall_avg,
+            'best_click_rate': max(all_valid_rates) if all_valid_rates else 0
         }
     
     def create_llm_prompt(self, user_request):
@@ -453,8 +463,11 @@ class RealLLMGenerator:
             service_analysis[service]['messages'].sort(key=lambda x: x['클릭률'], reverse=True)
             service_analysis[service]['messages'] = service_analysis[service]['messages'][:5]
         
-        # 키워드 분석
-        keyword_stats = self.performance_patterns.get('keyword_performance', {})
+        # 키워드 분석 - 프론트엔드 호환 형태로 변환
+        keyword_perf = self.performance_patterns.get('keyword_performance', {})
+        keyword_stats = {}
+        for keyword, data in keyword_perf.items():
+            keyword_stats[keyword] = [data.get('avg_rate', 0), data.get('count', 0)]
         
         # 시간대별 분석 - 안전한 데이터 처리
         time_analysis = {}

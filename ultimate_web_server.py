@@ -214,6 +214,8 @@ class UltimateHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     def handle_dashboard_api(self):
         """대시보드 데이터 API"""
         try:
+            print("📊 대시보드 API 요청 처리 시작...")
+            
             # 생성기 초기화 확인
             if not hasattr(self.server, 'llm_generator'):
                 print("🚀 Ultimate AI 생성기 초기화 중...")
@@ -223,9 +225,11 @@ class UltimateHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 print("✅ 초기화 완료!")
             
             generator = self.server.llm_generator
+            print("🔍 대시보드 데이터 생성 시작...")
             
             # 대시보드 데이터 가져오기
             dashboard_data = generator.get_dashboard_data()
+            print(f"✅ 대시보드 데이터 생성 완료 (키 개수: {len(dashboard_data)})")
             
             # 성공 응답
             response = {
@@ -233,10 +237,15 @@ class UltimateHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 'data': dashboard_data
             }
             
+            print("📤 JSON 응답 전송 중...")
             self.send_json_response(response)
+            print("✅ 대시보드 API 처리 완료")
             
         except Exception as e:
-            self.send_error_response(str(e))
+            print(f"❌ 대시보드 API 에러: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            self.send_error_response(f"대시보드 데이터 생성 실패: {str(e)}")
     
     def send_json_response(self, data):
         """JSON 응답 전송"""

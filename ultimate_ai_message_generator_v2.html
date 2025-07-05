@@ -587,8 +587,20 @@
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
                 
-                const result = await response.json();
-                console.log('📊 받은 데이터:', result);
+                // 응답이 JSON인지 확인
+                const contentType = response.headers.get('content-type');
+                console.log('📋 Content-Type:', contentType);
+                
+                let result;
+                if (contentType && contentType.includes('application/json')) {
+                    result = await response.json();
+                    console.log('📊 받은 데이터:', result);
+                } else {
+                    // HTML 에러 페이지인 경우
+                    const errorText = await response.text();
+                    console.log('❌ HTML 에러 응답:', errorText.substring(0, 200));
+                    throw new Error('서버에서 HTML 에러 페이지를 반환했습니다. 500 Internal Server Error 가능성 높음');
+                }
                 
                 if (result.success) {
                     dashboardData = result.data;
