@@ -23,6 +23,18 @@ try:
     if api_key:
         openai.api_key = api_key
         print("✅ OpenAI API 설정 완료")
+        print(f"🔑 API 키 길이: {len(api_key)} 문자")
+        print(f"🔑 API 키 시작: {api_key[:7]}...")
+        
+        # API 키 유효성 간단 테스트
+        try:
+            client = openai.OpenAI(api_key=api_key)
+            # 간단한 테스트 호출
+            test_response = client.models.list()
+            print("✅ OpenAI API 연결 테스트 성공!")
+        except Exception as test_e:
+            print(f"❌ OpenAI API 테스트 실패: {test_e}")
+            OPENAI_AVAILABLE = False
     else:
         print("⚠️ OPENAI_API_KEY 환경변수가 설정되지 않음")
         OPENAI_AVAILABLE = False
@@ -155,14 +167,26 @@ class UploadHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             }
             
             # AI 문구 생성 (실제 LLM 강제 사용)
+            print(f"\n=== LLM 생성 시작 ===")
             print(f"🔍 OpenAI 사용 가능: {OPENAI_AVAILABLE}")
             print(f"🔑 API 키 존재: {'Yes' if openai.api_key else 'No'}")
+            print(f"📊 분석된 데이터 수: {len(analyzer.data)}개")
+            print(f"🏆 고성과 메시지 수: {len(analyzer.high_performance_messages)}개")
             
+            # 강제로 OpenAI 사용 시도
             if OPENAI_AVAILABLE and openai.api_key:
-                print("🤖 실제 OpenAI LLM 호출 시도...")
-                generated_messages = self.generate_with_openai(user_request)
+                print("🤖 실제 OpenAI GPT-4 API 호출 중...")
+                try:
+                    generated_messages = self.generate_with_openai(user_request)
+                    print(f"✅ OpenAI 생성 완료: {len(generated_messages)}개 메시지")
+                except Exception as openai_error:
+                    print(f"❌ OpenAI 호출 실패: {openai_error}")
+                    print("🔄 데이터 기반 시뮬레이션으로 전환...")
+                    generated_messages = self.generate_simulation(user_request)
             else:
-                print("⚠️ OpenAI 설정 없음 - 시뮬레이션 모드")
+                print("⚠️ OpenAI 미설정 - 실제 데이터 기반 생성 모드")
+                if not openai.api_key:
+                    print("💡 OpenAI API 키를 설정하면 더 창의적인 문구를 생성할 수 있습니다.")
                 generated_messages = self.generate_simulation(user_request)
             
             # 관련 기존 메시지 찾기
@@ -202,12 +226,15 @@ class UploadHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             # 프롬프트 생성
             prompt = self.create_generation_prompt(user_request)
             
-            # OpenAI API 호출
+            # OpenAI API 호출 (더 자세한 로깅)
+            print(f"📤 OpenAI 호출 시작...")
+            print(f"📝 프롬프트 길이: {len(prompt)} 문자")
+            
             client = openai.OpenAI(api_key=openai.api_key)
             response = client.chat.completions.create(
-                model="gpt-4o-2024-11-20",
+                model="gpt-4o-mini",  # 더 안정적인 모델로 변경
                 messages=[
-                    {"role": "system", "content": "당신은 데이터 분석 기반의 전문 마케팅 문구 작성자입니다."},
+                    {"role": "system", "content": "당신은 한국어 대출 서비스 마케팅 전문가입니다. 실제 데이터를 분석하여 효과적인 알림 문구를 생성합니다."},
                     {"role": "user", "content": prompt}
                 ],
                 max_tokens=2000,
@@ -563,6 +590,8 @@ class UploadHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             
             # 점수순 정렬 후 상위 5개 반환
             relevant.sort(key=lambda x: (x['match_score'], x['actual_rate']), reverse=True)
+            
+            print(f"🎯 매칭된 기존 메시지: {len(relevant)}개")
             return relevant[:5]
             
         except Exception as e:
