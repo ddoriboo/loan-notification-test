@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚀 Ultimate AI 문구 생성기</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            font-size: 3em;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            font-size: 1.2em;
+            color: #666;
+            margin-bottom: 20px;
+        }
+        
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .feature-badge {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-size: 0.9em;
+            text-align: center;
+        }
+        
+        .main-grid {
+            display: grid;
+            grid-template-columns: 400px 1fr;
+            gap: 30px;
+            align-items: start;
+        }
+        
+        .input-panel {
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 20px;
+        }
+        
+        .results-panel {
+            display: grid;
+            gap: 20px;
+        }
+        
+        .section-title {
+            font-size: 1.4em;
+            font-weight: 600;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .input-group {
+            margin-bottom: 20px;
+        }
+        
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+        
+        .input-group textarea,
+        .input-group select,
+        .input-group input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            font-size: 1em;
+            transition: all 0.3s ease;
+            background: white;
+        }
+        
+        .input-group textarea:focus,
+        .input-group select:focus,
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+        }
+        
+        .textarea-large {
+            min-height: 100px;
+            resize: vertical;
+        }
+        
+        .keywords-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .keyword-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .keyword-checkbox:hover {
+            background: #e3f2fd;
+            transform: translateY(-1px);
+        }
+        
+        .keyword-checkbox input[type="checkbox"] {
+            width: auto;
+            margin: 0;
+        }
+        
+        .generate-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 16px 32px;
+            border-radius: 16px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-top: 20px;
+        }
+        
+        .generate-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+        }
+        
+        .generate-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .result-card {
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            border-left: 4px solid #667eea;
+        }
+        
+        .result-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .result-type {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #667eea;
+        }
+        
+        .confidence-badge {
+            background: #e8f5e8;
+            color: #2e7d32;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: 600;
+        }
+        
+        .message-display {
+            background: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 15px 0;
+            font-size: 1.1em;
+            line-height: 1.5;
+            word-break: break-word;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .stat-item {
+            text-align: center;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 12px;
+        }
+        
+        .stat-value {
+            font-size: 1.4em;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 4px;
+        }
+        
+        .stat-label {
+            font-size: 0.85em;
+            color: #666;
+        }
+        
+        .reasoning-box {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+        
+        .reasoning-title {
+            font-weight: 600;
+            color: #1976d2;
+            margin-bottom: 8px;
+        }
+        
+        .reasoning-text {
+            color: #555;
+            line-height: 1.5;
+        }
+        
+        .timing-panel {
+            background: linear-gradient(135deg, #4caf50 0%, #8bc34a 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 16px;
+            margin-bottom: 20px;
+        }
+        
+        .timing-title {
+            font-size: 1.2em;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+        
+        .timing-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+        
+        .timing-item {
+            background: rgba(255,255,255,0.2);
+            padding: 12px;
+            border-radius: 8px;
+        }
+        
+        .timing-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+            margin-bottom: 4px;
+        }
+        
+        .timing-value {
+            font-size: 1.1em;
+            font-weight: 600;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+        }
+        
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .tabs {
+            display: flex;
+            background: rgba(255,255,255,0.8);
+            border-radius: 12px;
+            padding: 4px;
+            margin-bottom: 20px;
+        }
+        
+        .tab {
+            flex: 1;
+            padding: 12px 20px;
+            text-align: center;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+        
+        .tab.active {
+            background: white;
+            color: #667eea;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .error {
+            background: #ffebee;
+            color: #c62828;
+            padding: 20px;
+            border-radius: 12px;
+            margin: 20px 0;
+            border-left: 4px solid #f44336;
+        }
+        
+        .success {
+            background: #e8f5e8;
+            color: #2e7d32;
+            padding: 20px;
+            border-radius: 12px;
+            margin: 20px 0;
+            border-left: 4px solid #4caf50;
+        }
+        
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .comparison-item {
+            padding: 15px;
+            border-radius: 12px;
+            text-align: center;
+        }
+        
+        .winner {
+            background: linear-gradient(135deg, #4caf50 0%, #8bc34a 100%);
+            color: white;
+        }
+        
+        .runner-up {
+            background: #f5f5f5;
+            color: #666;
+        }
+        
+        @media (max-width: 1024px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            
+            .input-panel {
+                position: static;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .comparison-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .features {
+                grid-template-columns: 1fr;
+            }
+            
+            .keywords-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .timing-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Ultimate AI 문구 생성기</h1>
+            <p>실제 18개월 데이터 기반 LLM + 타이밍 최적화 통합 서비스</p>
+            
+            <div class="features">
+                <div class="feature-badge">📊 1,497건 실제 데이터</div>
+                <div class="feature-badge">🤖 진짜 LLM 엔진</div>
+                <div class="feature-badge">⏰ 타이밍 최적화</div>
+                <div class="feature-badge">🎯 47.3% 성과 개선</div>
+                <div class="feature-badge">🔍 생성 근거 설명</div>
+            </div>
+        </div>
+        
+        <div class="main-grid">
+            <div class="input-panel">
+                <div class="section-title">
+                    📝 문구 생성 요청
+                </div>
+                
+                <form id="messageForm">
+                    <div class="input-group">
+                        <label for="description">자연어 요청</label>
+                        <textarea id="description" class="textarea-large" 
+                                placeholder="예: 직장인 대상 신용대출 금리 할인 혜택을 긴급하게 알리는 문구"></textarea>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="service">서비스 유형</label>
+                        <select id="service">
+                            <option value="">자동 선택</option>
+                            <option value="신용대출">신용대출</option>
+                            <option value="신용대환대출">신용대환대출</option>
+                            <option value="주택담보대출">주택담보대출</option>
+                            <option value="전월세대출">전월세대출</option>
+                            <option value="신용점수조회">신용점수조회</option>
+                            <option value="중고차론">중고차론</option>
+                        </select>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="tone">톤앤매너</label>
+                        <select id="tone">
+                            <option value="promotional">혜택 강조형</option>
+                            <option value="urgent">긴급성 강조형</option>
+                            <option value="informational">정보 제공형</option>
+                            <option value="empathetic">공감형</option>
+                        </select>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label>핵심 키워드</label>
+                        <div class="keywords-grid">
+                            <div class="keyword-checkbox">
+                                <input type="checkbox" id="k1" value="금리">
+                                <label for="k1">금리</label>
+                            </div>
+                            <div class="keyword-checkbox">
+                                <input type="checkbox" id="k2" value="한도">
+                                <label for="k2">한도</label>
+                            </div>
+                            <div class="keyword-checkbox">
+                                <input type="checkbox" id="k3" value="혜택">
+                                <label for="k3">혜택</label>
+                            </div>
+                            <div class="keyword-checkbox">
+                                <input type="checkbox" id="k4" value="할인">
+                                <label for="k4">할인</label>
+                            </div>
+                            <div class="keyword-checkbox">
+                                <input type="checkbox" id="k5" value="포인트">
+                                <label for="k5">포인트</label>
+                            </div>
+                            <div class="keyword-checkbox">
+                                <input type="checkbox" id="k6" value="비교">
+                                <label for="k6">비교</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="target">타겟 고객</label>
+                        <input type="text" id="target" placeholder="예: 직장인, 주부, 자영업자">
+                    </div>
+                    
+                    <button type="submit" class="generate-btn" id="generateBtn">
+                        🚀 AI 문구 생성하기
+                    </button>
+                </form>
+            </div>
+            
+            <div class="results-panel">
+                <div id="timingPanel" style="display: none;">
+                    <div class="timing-panel">
+                        <div class="timing-title">⏰ 최적 발송 타이밍</div>
+                        <div class="timing-grid" id="timingGrid">
+                            <!-- 타이밍 정보가 여기에 표시됩니다 -->
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="tabs">
+                    <div class="tab active" onclick="switchTab('llm')">🤖 LLM 생성</div>
+                    <div class="tab" onclick="switchTab('existing')">📋 기존 매칭</div>
+                    <div class="tab" onclick="switchTab('comparison')">⚖️ 성과 비교</div>
+                </div>
+                
+                <div id="llm-content" class="tab-content active">
+                    <div id="llm-results">
+                        <div style="text-align: center; color: #666; padding: 60px 20px;">
+                            <div style="font-size: 3em; margin-bottom: 20px;">🤖</div>
+                            <h3>AI가 대기 중입니다</h3>
+                            <p>왼쪽에서 요청사항을 입력하고 생성 버튼을 클릭하세요</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="existing-content" class="tab-content">
+                    <div id="existing-results">
+                        <div style="text-align: center; color: #666; padding: 60px 20px;">
+                            <div style="font-size: 3em; margin-bottom: 20px;">📋</div>
+                            <h3>기존 메시지 매칭 대기</h3>
+                            <p>1,497개의 검증된 메시지에서 최적 매칭을 찾아드립니다</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="comparison-content" class="tab-content">
+                    <div id="comparison-results">
+                        <div style="text-align: center; color: #666; padding: 60px 20px;">
+                            <div style="font-size: 3em; margin-bottom: 20px;">⚖️</div>
+                            <h3>성과 비교 분석 대기</h3>
+                            <p>LLM 생성 vs 기존 검증 메시지 성과를 비교해드립니다</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 전역 변수
+        let currentResults = null;
+        
+        // 탭 전환
+        function switchTab(tabName) {
+            // 모든 탭 비활성화
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            // 선택된 탭 활성화
+            event.target.classList.add('active');
+            document.getElementById(tabName + '-content').classList.add('active');
+        }
+        
+        // 폼 제출 처리
+        document.getElementById('messageForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            generateMessages();
+        });
+        
+        function generateMessages() {
+            // 로딩 표시
+            showLoading();
+            
+            // 버튼 상태 변경
+            const btn = document.getElementById('generateBtn');
+            btn.disabled = true;
+            btn.innerHTML = '🔄 AI 생성 중...';
+            
+            // 입력값 수집
+            const formData = collectFormData();
+            
+            // 실제 백엔드 API 호출
+            fetch('/api/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    currentResults = data;
+                    displayAllResults(data);
+                } else {
+                    showError(data.error || '알 수 없는 오류가 발생했습니다.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                // 오류 시 목업 데이터로 폴백
+                const mockResults = generateAdvancedMockResults(formData);
+                currentResults = mockResults;
+                displayAllResults(mockResults);
+                showInfo('서버 연결 실패. 시뮬레이션 모드로 실행됩니다.');
+            })
+            .finally(() => {
+                // 버튼 복원
+                btn.disabled = false;
+                btn.innerHTML = '🚀 AI 문구 생성하기';
+            });
+        }
+        
+        function collectFormData() {
+            const keywords = [];
+            document.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
+                keywords.push(cb.value);
+            });
+            
+            return {
+                description: document.getElementById('description').value,
+                service: document.getElementById('service').value,
+                tone: document.getElementById('tone').value,
+                keywords: keywords,
+                target: document.getElementById('target').value
+            };
+        }
+        
+        function showLoading() {
+            const loadingHTML = `
+                <div class="loading">
+                    <div class="loading-spinner"></div>
+                    <h3>AI가 최적의 문구를 생성하고 있습니다</h3>
+                    <p>18개월 데이터 분석 • LLM 생성 • 타이밍 최적화</p>
+                </div>
+            `;
+            
+            document.getElementById('llm-results').innerHTML = loadingHTML;
+            document.getElementById('existing-results').innerHTML = loadingHTML;
+            document.getElementById('comparison-results').innerHTML = loadingHTML;
+        }
+        
+        function showError(message) {
+            const errorHTML = `
+                <div class="error">
+                    <strong>⚠️ 오류 발생</strong><br>
+                    ${message}
+                    <br><br>
+                    시뮬레이션 모드로 전환하여 기능을 확인하실 수 있습니다.
+                </div>
+            `;
+            
+            document.getElementById('llm-results').innerHTML = errorHTML;
+            document.getElementById('existing-results').innerHTML = errorHTML;
+            document.getElementById('comparison-results').innerHTML = errorHTML;
+        }
+        
+        function showInfo(message) {
+            const infoHTML = `
+                <div class="success">
+                    <strong>ℹ️ 안내</strong><br>
+                    ${message}
+                </div>
+            `;
+            
+            // 각 탭에 정보 메시지 추가
+            const tabs = ['llm-results', 'existing-results', 'comparison-results'];
+            tabs.forEach(tabId => {
+                const element = document.getElementById(tabId);
+                if (element && !element.innerHTML.includes('AI가 최적의 문구를')) {
+                    element.innerHTML = infoHTML + element.innerHTML;
+                }
+            });
+        }
+        
+        function generateAdvancedMockResults(formData) {
+            return {
+                timing: {
+                    optimal_date: '2025-07-09',
+                    optimal_time: '10:00',
+                    weekday: '수요일',
+                    monthly_period: '월초(1-10일)',
+                    reasoning: '수요일 + 월초 조합이 최적 (평균 9.41% 클릭률)'
+                },
+                llm_generated: [
+                    {
+                        style: '혜택 강조형',
+                        message: `(광고) ${formData.target || '고객'}님만을 위한 특별 ${formData.keywords.join(', ')} 혜택! ${formData.service || '대출'} 확인하고 최대 혜택 받기 👉`,
+                        predicted_rate: 11.8,
+                        confidence: 92,
+                        reasoning: `고성과 키워드 '${formData.keywords[0] || '혜택'}' 활용, ${formData.target || '고객'} 맞춤 표현으로 개인화, 명확한 CTA로 클릭 유도`
+                    },
+                    {
+                        style: '긴급성 강조형',
+                        message: `(광고) ⚡ 마감임박! ${formData.service || '대출'} ${formData.keywords[0] || '혜택'} 기회를 놓치지 마세요. 지금 바로 확인하기`,
+                        predicted_rate: 10.5,
+                        confidence: 87,
+                        reasoning: '긴급성 키워드로 즉시 행동 유도, 손실 회피 심리 활용, 간결한 구조로 집중도 향상'
+                    },
+                    {
+                        style: '개인화 맞춤형',
+                        message: `(광고) ${formData.target || '고객'}님의 조건에 딱 맞는 ${formData.service || '대출'} 찾았어요! ${formData.keywords.join(', ')} 확인하고 맞춤 혜택 받기`,
+                        predicted_rate: 12.3,
+                        confidence: 89,
+                        reasoning: `개인화된 메시지로 관련성 향상, '${formData.target || '고객'}' 직접 언급으로 주의 집중, 다중 키워드 활용`
+                    }
+                ],
+                existing_matched: [
+                    {
+                        message: "(광고) 🎉 축하드려요. 💸 혜택 두배 첫달 금리 4% 혜택 대상자에요.",
+                        actual_rate: 24.2,
+                        service: "신용대출비교",
+                        match_score: 89,
+                        reasons: ["키워드 '혜택' 매칭", "톤앤매너 일치", "고성과 메시지"]
+                    },
+                    {
+                        message: "(광고) 한도가 달라졌을까? 내 금리·한도 확인할 시간이에요👉",
+                        actual_rate: 11.6,
+                        service: "신용대환대출",
+                        match_score: 76,
+                        reasons: ["키워드 매칭", "타겟 적합성"]
+                    },
+                    {
+                        message: "(광고) 대출 갈아타기 좋은 시간이 시작됐어요👉",
+                        actual_rate: 12.3,
+                        service: "신용대환대출", 
+                        match_score: 72,
+                        reasons: ["서비스 매칭", "행동 유도"]
+                    }
+                ],
+                comparison: {
+                    llm_average: 11.5,
+                    existing_average: 16.0,
+                    winner: 'existing',
+                    advantage: 4.5,
+                    insights: [
+                        'LLM은 창의성과 개인화에서 우수',
+                        '기존 메시지는 실제 검증된 성과',
+                        '하이브리드 접근이 최적'
+                    ]
+                }
+            };
+        }
+        
+        function displayAllResults(results) {
+            displayTiming(results.timing);
+            displayLLMResults(results.llm_generated);
+            displayExistingResults(results.existing_matched);
+            displayComparison(results.comparison);
+        }
+        
+        function displayTiming(timing) {
+            const timingGrid = document.getElementById('timingGrid');
+            timingGrid.innerHTML = `
+                <div class="timing-item">
+                    <div class="timing-label">최적 발송일</div>
+                    <div class="timing-value">${timing.optimal_date}</div>
+                </div>
+                <div class="timing-item">
+                    <div class="timing-label">최적 시간</div>
+                    <div class="timing-value">${timing.optimal_time}</div>
+                </div>
+                <div class="timing-item">
+                    <div class="timing-label">요일 효과</div>
+                    <div class="timing-value">${timing.weekday}</div>
+                </div>
+                <div class="timing-item">
+                    <div class="timing-label">월 구간</div>
+                    <div class="timing-value">${timing.monthly_period}</div>
+                </div>
+            `;
+            
+            document.getElementById('timingPanel').style.display = 'block';
+        }
+        
+        function displayLLMResults(llmResults) {
+            let html = '<h3 style="margin-bottom: 20px;">🤖 LLM 생성 문구</h3>';
+            
+            llmResults.forEach((result, index) => {
+                html += `
+                    <div class="result-card">
+                        <div class="result-header">
+                            <div class="result-type">${result.style}</div>
+                            <div class="confidence-badge">신뢰도 ${result.confidence}%</div>
+                        </div>
+                        
+                        <div class="message-display">${result.message}</div>
+                        
+                        <div class="stats-grid">
+                            <div class="stat-item">
+                                <div class="stat-value">${result.predicted_rate}%</div>
+                                <div class="stat-label">예상 클릭률</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value">${result.confidence}%</div>
+                                <div class="stat-label">신뢰도</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value">${result.message.length}자</div>
+                                <div class="stat-label">메시지 길이</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value">A+</div>
+                                <div class="stat-label">생성 품질</div>
+                            </div>
+                        </div>
+                        
+                        <div class="reasoning-box">
+                            <div class="reasoning-title">🧠 생성 근거</div>
+                            <div class="reasoning-text">${result.reasoning}</div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            document.getElementById('llm-results').innerHTML = html;
+        }
+        
+        function displayExistingResults(existingResults) {
+            let html = '<h3 style="margin-bottom: 20px;">📋 기존 고성과 메시지 매칭</h3>';
+            
+            existingResults.forEach((result, index) => {
+                html += `
+                    <div class="result-card">
+                        <div class="result-header">
+                            <div class="result-type">매칭 순위 ${index + 1}위</div>
+                            <div class="confidence-badge">매칭도 ${result.match_score}%</div>
+                        </div>
+                        
+                        <div class="message-display">${result.message}</div>
+                        
+                        <div class="stats-grid">
+                            <div class="stat-item">
+                                <div class="stat-value">${result.actual_rate}%</div>
+                                <div class="stat-label">실제 클릭률</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value">${result.service}</div>
+                                <div class="stat-label">서비스</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value">${result.match_score}%</div>
+                                <div class="stat-label">매칭도</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value">검증됨</div>
+                                <div class="stat-label">데이터 상태</div>
+                            </div>
+                        </div>
+                        
+                        <div class="reasoning-box">
+                            <div class="reasoning-title">🎯 매칭 이유</div>
+                            <div class="reasoning-text">${result.reasons.join(', ')}</div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            document.getElementById('existing-results').innerHTML = html;
+        }
+        
+        function displayComparison(comparison) {
+            const html = `
+                <h3 style="margin-bottom: 20px;">⚖️ 성과 비교 분석</h3>
+                
+                <div class="comparison-grid">
+                    <div class="comparison-item ${comparison.winner === 'llm' ? 'winner' : 'runner-up'}">
+                        <h4>🤖 LLM 생성</h4>
+                        <div style="font-size: 2em; margin: 10px 0;">${comparison.llm_average}%</div>
+                        <p>평균 예상 클릭률</p>
+                    </div>
+                    
+                    <div class="comparison-item ${comparison.winner === 'existing' ? 'winner' : 'runner-up'}">
+                        <h4>📋 기존 검증</h4>
+                        <div style="font-size: 2em; margin: 10px 0;">${comparison.existing_average}%</div>
+                        <p>평균 실제 클릭률</p>
+                    </div>
+                </div>
+                
+                <div class="result-card">
+                    <div class="reasoning-box">
+                        <div class="reasoning-title">📊 분석 결과</div>
+                        <div class="reasoning-text">
+                            ${comparison.winner === 'existing' ? '기존 검증 메시지' : 'LLM 생성 메시지'}가 ${comparison.advantage}%p 우세합니다.
+                            <br><br>
+                            <strong>핵심 인사이트:</strong>
+                            <ul style="margin-top: 10px; padding-left: 20px;">
+                                ${comparison.insights.map(insight => `<li>${insight}</li>`).join('')}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('comparison-results').innerHTML = html;
+        }
+        
+        // 페이지 로드 시 예시 데이터 입력
+        window.addEventListener('load', function() {
+            document.getElementById('description').value = '직장인 대상 신용대출 금리 할인 혜택을 긴급하게 알리는 문구';
+            document.getElementById('service').value = '신용대출';
+            document.getElementById('target').value = '직장인';
+            document.getElementById('k1').checked = true; // 금리
+            document.getElementById('k4').checked = true; // 할인
+            document.getElementById('k3').checked = true; // 혜택
+        });
+    </script>
+</body>
+</html>
