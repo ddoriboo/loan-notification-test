@@ -18,8 +18,9 @@ try:
     import openai
     OPENAI_AVAILABLE = True
     
-    # 환경변수에서 API 키 가져오기
-    api_key = os.environ.get('OPENAI_API_KEY')
+    # 환경변수에서 API 키 가져오기 또는 직접 설정
+    DIRECT_API_KEY = "your-openai-api-key-here"  # 여기에 실제 API 키를 입력하세요
+    api_key = os.environ.get('OPENAI_API_KEY') or DIRECT_API_KEY
     if api_key:
         openai.api_key = api_key
         print("✅ OpenAI API 설정 완료")
@@ -599,13 +600,19 @@ class UploadHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             return []
     
     def send_json_response(self, data, status=200):
-        """JSON 응답 전송 (datetime 안전 처리)"""
+        """JSON 응답 전송 (캐시 방지 포함)"""
         try:
             self.send_response(status)
             self.send_header('Content-Type', 'application/json; charset=utf-8')
             self.send_header('Access-Control-Allow-Origin', '*')
             self.send_header('Access-Control-Allow-Methods', 'POST, GET, OPTIONS')
             self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+            
+            # 캐시 방지 헤더 추가
+            self.send_header('Cache-Control', 'no-cache, no-store, must-revalidate')
+            self.send_header('Pragma', 'no-cache')
+            self.send_header('Expires', '0')
+            
             self.end_headers()
             
             # JSON serialization with datetime handling

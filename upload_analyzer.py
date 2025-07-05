@@ -22,16 +22,24 @@ class UploadAnalyzer:
         self.analysis_complete = False
         
     def analyze_uploaded_csv(self, csv_content):
-        """업로드된 CSV 내용 분석"""
+        """업로드된 CSV 내용 분석 (강화된 디버그)"""
         try:
+            print("\n" + "="*50)
             print("📊 업로드된 CSV 분석 시작...")
+            print("="*50)
             print(f"📄 CSV 내용 미리보기: {csv_content[:200]}...")
             
-            # 데이터 완전 초기화
+            # 데이터 완전 초기화 (강제)
+            print("🗑️ 기존 데이터 완전 삭제...")
             self.data = []
             self.high_performance_messages = []
             self.performance_patterns = {}
             self.analysis_complete = False
+            print(f"✅ 초기화 완료: data={len(self.data)}, patterns={len(self.performance_patterns)}")
+            
+            # CSV 라인 수 확인
+            lines = csv_content.strip().split('\n')
+            print(f"📋 총 라인 수: {len(lines)}개 (헤더 포함)")
             
             # CSV 파싱
             csv_file = io.StringIO(csv_content)
@@ -40,6 +48,7 @@ class UploadAnalyzer:
             print(f"📋 CSV 헤더: {reader.fieldnames}")
             
             # 행별 처리
+            processed_count = 0
             for i, row in enumerate(reader):
                 try:
                     # 필드명 정규화 (다양한 형식 지원)
@@ -50,10 +59,17 @@ class UploadAnalyzer:
                     
                     if processed_row:
                         self.data.append(processed_row)
+                        processed_count += 1
+                        
+                        # 처음 3개 행 내용 표시
+                        if processed_count <= 3:
+                            print(f"📝 행 {processed_count}: {processed_row.get('서비스명', 'N/A')}, {processed_row.get('클릭율', 0)}%, {processed_row.get('요일', 'N/A')}")
                             
                 except Exception as e:
                     print(f"⚠️ 행 {i+1} 처리 실패: {e}")
                     continue
+            
+            print(f"📊 처리 완료: {processed_count}개 행 성공적으로 파싱됨")
             
             if not self.data:
                 raise Exception("유효한 데이터가 없습니다. CSV 형식을 확인해주세요.")
