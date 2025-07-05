@@ -21,18 +21,21 @@ class UltimateHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     
     def do_GET(self):
         if self.path == '/':
-            self.path = '/ultimate_ai_message_generator_v2.html'
+            self.path = '/upload_web_interface.html'
         return super().do_GET()
     
     def do_POST(self):
-        if self.path == '/api/generate':
-            self.handle_generate_api()
+        if self.path == '/api/upload-csv':
+            self.handle_upload_csv()
+        elif self.path == '/api/dashboard':
+            self.handle_dashboard_new()
+        elif self.path == '/api/generate':
+            self.handle_generate_new()
+        # 기존 API들 (하위 호환성)
         elif self.path == '/api/timing':
             self.handle_timing_api()
         elif self.path == '/api/compare':
             self.handle_compare_api()
-        elif self.path == '/api/dashboard':
-            self.handle_dashboard_api()
         else:
             self.send_error(404)
     

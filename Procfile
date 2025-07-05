@@ -1,1 +1,1 @@
-web: python3 ultimate_web_server.py
+web: python3 upload_web_server.py
