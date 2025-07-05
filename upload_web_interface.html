@@ -416,6 +416,7 @@
                 <button class="tab" onclick="showTab('messages')">💬 고성과 메시지</button>
                 <button class="tab" onclick="showTab('keywords')">🔑 키워드 분석</button>
                 <button class="tab" onclick="showTab('services')">🏷️ 서비스별 분석</button>
+                <button class="tab" onclick="showTab('insights')">📝 인사이트 리포트</button>
                 <button class="tab" onclick="showTab('generate')">✨ 문구 생성</button>
             </div>
             
@@ -495,6 +496,34 @@
                 </form>
                 
                 <div id="generationResults" style="margin-top: 30px;"></div>
+            </div>
+        </div>
+        
+        <!-- 인사이트 리포트 탭 -->
+        <div id="insights" class="tab-content">
+            <h2 style="margin-bottom: 25px;">📝 자연어 인사이트 리포트</h2>
+            
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 12px; margin-bottom: 25px;">
+                <h3 style="margin-bottom: 15px;">🎯 리포트 개요</h3>
+                <p style="line-height: 1.6; margin: 0;">
+                    업로드된 CSV 데이터를 AI가 종합적으로 분석하여 생성한 자연어 인사이트입니다. 
+                    데이터의 패턴, 트렌드, 개선점을 사람이 이해하기 쉬운 문장으로 제공합니다.
+                </p>
+            </div>
+            
+            <div id="insightsContent">
+                <div style="text-align: center; padding: 40px; color: #666;">
+                    <div style="font-size: 3em; margin-bottom: 15px;">📊</div>
+                    <div>인사이트를 생성하려면 먼저 CSV 파일을 업로드하세요.</div>
+                </div>
+            </div>
+            
+            <div style="text-align: center; margin-top: 30px;">
+                <button id="generateInsightsBtn" onclick="generateInsights()" 
+                        style="background: #28a745; color: white; border: none; padding: 14px 28px; 
+                               border-radius: 8px; font-size: 1em; cursor: pointer; display: none;">
+                    🤖 AI 인사이트 생성하기
+                </button>
             </div>
         </div>
     </div>
@@ -661,21 +690,88 @@
             }).join('');
             document.getElementById('weekdayChart').innerHTML = weekdayHtml;
             
-            // 고성과 메시지
-            const messagesHtml = data.high_performance_messages.map(msg => {
-                const rateClass = msg['클릭율'] >= 12 ? 'high' : 
-                                 msg['클릭율'] >= 8 ? 'medium' : 'low';
-                return `
-                    <div class="message-card">
-                        <div class="message-header">
-                            <div class="service-name">${msg['서비스명']}</div>
-                            <div class="click-rate ${rateClass}">${msg['클릭율'].toFixed(1)}%</div>
+            // 고성과 메시지 (집계된 데이터 사용)
+            let messagesHtml = '';
+            
+            // 고성과 기준 정의 표시
+            const criteria = data.summary.high_performance_criteria || {};
+            if (criteria.description) {
+                messagesHtml += `
+                    <div style="background: #e8f5e8; padding: 20px; border-radius: 12px; margin-bottom: 25px; border-left: 4px solid #28a745;">
+                        <h3 style="margin: 0 0 15px; color: #155724;">📏 고성과 메시지 선정 기준</h3>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px;">
+                            <div><strong>기준:</strong> ${criteria.description}</div>
+                            <div><strong>임계값:</strong> ${criteria.threshold_rate ? criteria.threshold_rate.toFixed(1) + '%' : 'N/A'}</div>
+                            <div><strong>선정 메시지:</strong> ${criteria.count || 0}개</div>
+                            <div><strong>전체 평균:</strong> ${criteria.avg_rate ? criteria.avg_rate.toFixed(1) + '%' : 'N/A'}</div>
                         </div>
-                        <div class="message-text">${msg['발송 문구']}</div>
-                        <div class="message-meta">발송일: ${msg['발송일'] ? new Date(msg['발송일']).toLocaleDateString() : 'N/A'} | ${msg['요일']}요일</div>
+                        <div style="color: #666; font-size: 0.9em;">
+                            ℹ️ 상위 ${criteria.top_percent || 20}% 메시지 중 기준을 만족하는 ${criteria.total_candidates || 0}개 후보에서 선별
+                        </div>
                     </div>
                 `;
-            }).join('');
+            }
+            
+            // 집계된 고성과 메시지 표시
+            if (data.aggregated_high_performance && data.aggregated_high_performance.length > 0) {
+                messagesHtml += `
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 12px; margin-bottom: 25px;">
+                        <h3 style="margin: 0 0 15px;">📊 동일 문구별 집계 분석</h3>
+                        <div style="color: #666; margin-bottom: 15px;">
+                            동일한 문구의 발송 횟수, 총 성과, 평균 클릭률을 종합하여 표시합니다.
+                        </div>
+                    </div>
+                `;
+                
+                data.aggregated_high_performance.forEach((aggMsg, index) => {
+                    const rateClass = aggMsg.total_click_rate >= 12 ? 'high' : 
+                                     aggMsg.total_click_rate >= 8 ? 'medium' : 'low';
+                    
+                    messagesHtml += `
+                        <div class="message-card" style="border-left: 4px solid ${rateClass === 'high' ? '#4caf50' : rateClass === 'medium' ? '#ff9800' : '#f44336'};">
+                            <div class="message-header">
+                                <div style="display: flex; gap: 10px; align-items: center;">
+                                    <div style="background: ${rateClass === 'high' ? '#4caf50' : rateClass === 'medium' ? '#ff9800' : '#f44336'}; 
+                                               color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold;">
+                                        ${aggMsg.send_count}회 발송
+                                    </div>
+                                    <div style="color: #666; font-size: 0.9em;">
+                                        ${aggMsg.services.join(', ')}
+                                    </div>
+                                </div>
+                                <div class="click-rate ${rateClass}">${aggMsg.total_click_rate.toFixed(1)}%</div>
+                            </div>
+                            <div class="message-text">${aggMsg.message}</div>
+                            <div class="message-meta" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 15px;">
+                                <div><strong>총 발송:</strong> ${aggMsg.total_sends.toLocaleString()}명</div>
+                                <div><strong>총 클릭:</strong> ${aggMsg.total_clicks.toLocaleString()}회</div>
+                                <div><strong>평균 클릭률:</strong> ${aggMsg.avg_click_rate}%</div>
+                                <div><strong>최고 클릭률:</strong> ${aggMsg.max_click_rate}%</div>
+                            </div>
+                            <div style="margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 6px; font-size: 0.9em; color: #666;">
+                                📅 기간: ${aggMsg.date_range.first} ~ ${aggMsg.date_range.last}
+                            </div>
+                        </div>
+                    `;
+                });
+            } else {
+                // 기존 개별 메시지 표시 (fallback)
+                messagesHtml += data.high_performance_messages.map(msg => {
+                    const rateClass = msg['클릭율'] >= 12 ? 'high' : 
+                                     msg['클릭율'] >= 8 ? 'medium' : 'low';
+                    return `
+                        <div class="message-card">
+                            <div class="message-header">
+                                <div class="service-name">${msg['서비스명']}</div>
+                                <div class="click-rate ${rateClass}">${msg['클릭율'].toFixed(1)}%</div>
+                            </div>
+                            <div class="message-text">${msg['발송 문구']}</div>
+                            <div class="message-meta">발송일: ${msg['발송일'] ? new Date(msg['발송일']).toLocaleDateString() : 'N/A'} | ${msg['요일']}요일</div>
+                        </div>
+                    `;
+                }).join('');
+            }
+            
             document.getElementById('highPerformanceMessages').innerHTML = messagesHtml;
             
             // 키워드 분석 (색상 코딩 추가)
@@ -754,7 +850,7 @@
             });
         }
         
-        // 탭 전환
+        // 탭 전환 (개선된 버전)
         function showTab(tabName) {
             // 모든 탭 비활성화
             document.querySelectorAll('.tab').forEach(tab => {
@@ -768,11 +864,174 @@
             event.target.classList.add('active');
             document.getElementById(tabName).classList.add('active');
             
+            // summary 탭이 아닐 때만 summary 내용 숨기기 (전체분석 요약은 항상 표시)
+            const summaryTab = document.getElementById('summary');
+            if (tabName !== 'summary') {
+                // summary 탭 내용을 다른 탭 상단에 표시
+                showSummaryInOtherTabs(tabName);
+            }
+            
+            // insights 탭 선택시 생성 버튼 표시
+            const generateInsightsBtn = document.getElementById('generateInsightsBtn');
+            if (tabName === 'insights' && analysisData) {
+                generateInsightsBtn.style.display = 'inline-block';
+            } else if (tabName === 'insights') {
+                generateInsightsBtn.style.display = 'none';
+            }
+            
             // 탭 컨테이너 상단으로 스크롤
             document.getElementById('tabsContainer').scrollIntoView({ 
                 behavior: 'smooth',
                 block: 'start'
             });
+        }
+        
+        // 다른 탭에서 요약 정보 표시
+        function showSummaryInOtherTabs(tabName) {
+            if (!analysisData) return;
+            
+            // 기존 요약 정보 제거
+            const existingSummary = document.querySelector('.tab-summary-overlay');
+            if (existingSummary) {
+                existingSummary.remove();
+            }
+            
+            // 요약 정보 생성
+            const summaryOverlay = document.createElement('div');
+            summaryOverlay.className = 'tab-summary-overlay';
+            summaryOverlay.style.cssText = `
+                background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+                padding: 20px;
+                margin-bottom: 25px;
+                border-radius: 12px;
+                border-left: 4px solid #667eea;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            `;
+            
+            const summary = analysisData.summary;
+            summaryOverlay.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h3 style="margin: 0; color: #333;">📊 전체 분석 요약</h3>
+                    <button onclick="showTab('summary')" 
+                            style="background: #667eea; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.9em;">
+                        상세보기
+                    </button>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                    <div style="text-align: center;">
+                        <div style="font-size: 1.8em; font-weight: bold; color: #667eea;">${summary.total_messages}</div>
+                        <div style="color: #666; font-size: 0.9em;">전체 메시지</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="font-size: 1.8em; font-weight: bold; color: #28a745;">${summary.avg_click_rate.toFixed(1)}%</div>
+                        <div style="color: #666; font-size: 0.9em;">평균 클릭률</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="font-size: 1.8em; font-weight: bold; color: #ffc107;">${summary.best_click_rate.toFixed(1)}%</div>
+                        <div style="color: #666; font-size: 0.9em;">최고 클릭률</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="font-size: 1.8em; font-weight: bold; color: #dc3545;">${summary.high_performance_count}</div>
+                        <div style="color: #666; font-size: 0.9em;">고성과 메시지</div>
+                    </div>
+                </div>
+            `;
+            
+            // 해당 탭 컨텐츠 상단에 추가
+            const tabContent = document.getElementById(tabName);
+            const firstChild = tabContent.querySelector('h2');
+            if (firstChild) {
+                firstChild.insertAdjacentElement('afterend', summaryOverlay);
+            }
+        }
+        
+        // 인사이트 생성 함수
+        async function generateInsights() {
+            if (!analysisData) {
+                alert('먼저 CSV 파일을 업로드하고 분석을 완료해주세요.');
+                return;
+            }
+            
+            const generateBtn = document.getElementById('generateInsightsBtn');
+            const insightsContent = document.getElementById('insightsContent');
+            
+            // 로딩 상태 표시
+            generateBtn.disabled = true;
+            generateBtn.textContent = '🤖 인사이트 생성 중...';
+            
+            insightsContent.innerHTML = `
+                <div style="text-align: center; padding: 40px;">
+                    <div class="loading-spinner" style="margin: 0 auto 20px;"></div>
+                    <div style="color: #666;">AI가 데이터를 분석하여 인사이트를 생성하고 있습니다...</div>
+                </div>
+            `;
+            
+            try {
+                const response = await fetch('/api/insights', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    displayInsights(result.insights, result.summary);
+                } else {
+                    throw new Error(result.error || '인사이트 생성에 실패했습니다.');
+                }
+            } catch (error) {
+                console.error('인사이트 생성 실패:', error);
+                insightsContent.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #dc3545;">
+                        <div style="font-size: 3em; margin-bottom: 15px;">⚠️</div>
+                        <div><strong>인사이트 생성 실패</strong></div>
+                        <div style="margin-top: 10px; color: #666;">${error.message}</div>
+                        <button onclick="generateInsights()" style="margin-top: 20px; background: #dc3545; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer;">
+                            다시 시도
+                        </button>
+                    </div>
+                `;
+            } finally {
+                generateBtn.disabled = false;
+                generateBtn.textContent = '🤖 AI 인사이트 생성하기';
+            }
+        }
+        
+        // 인사이트 표시 함수
+        function displayInsights(insights, summary) {
+            const insightsContent = document.getElementById('insightsContent');
+            
+            let html = `
+                <div style="background: #e8f5e8; padding: 20px; border-radius: 12px; margin-bottom: 25px;">
+                    <h3 style="margin-bottom: 15px; color: #155724;">📈 인사이트 요약</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 15px;">
+                        <div><strong>분석 일시:</strong> ${summary.analysis_date}</div>
+                        <div><strong>데이터 포인트:</strong> ${summary.data_points}개</div>
+                        <div><strong>인사이트 수:</strong> ${summary.insight_count}개</div>
+                    </div>
+                </div>
+            `;
+            
+            insights.forEach((insight, index) => {
+                html += `
+                    <div style="background: white; padding: 25px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-left: 4px solid #667eea;">
+                        <h4 style="margin: 0 0 15px; color: #333; font-size: 1.1em;">${insight.category}</h4>
+                        <p style="margin: 0; line-height: 1.7; color: #555;">${insight.content}</p>
+                    </div>
+                `;
+            });
+            
+            html += `
+                <div style="text-align: center; margin-top: 30px; padding: 20px; background: #f8f9fa; border-radius: 12px;">
+                    <div style="color: #666; margin-bottom: 10px;">💡 이 인사이트는 업로드된 실제 데이터를 기반으로 AI가 생성했습니다.</div>
+                    <button onclick="generateInsights()" style="background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer;">
+                        🔄 인사이트 재생성
+                    </button>
+                </div>
+            `;
+            
+            insightsContent.innerHTML = html;
         }
         
         // 새 업로드로 돌아가기

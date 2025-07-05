@@ -80,6 +80,8 @@ class UploadHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.handle_dashboard()
         elif self.path == '/api/generate':
             self.handle_generate()
+        elif self.path == '/api/insights':
+            self.handle_insights()
         else:
             self.send_error(404)
     
@@ -598,6 +600,38 @@ class UploadHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         except Exception as e:
             print(f"⚠️ 관련 메시지 검색 실패: {e}")
             return []
+    
+    def handle_insights(self):
+        """자연어 인사이트 생성 처리"""
+        try:
+            print("📝 자연어 인사이트 생성 요청...")
+            
+            # 분석 완료 확인
+            if not analyzer.analysis_complete:
+                error_response = {
+                    'success': False,
+                    'error': '먼저 CSV 파일을 업로드하고 분석을 완료해주세요.'
+                }
+                self.send_json_response(error_response, status=400)
+                return
+            
+            # 인사이트 생성
+            insights_result = analyzer.generate_natural_language_insights()
+            
+            if insights_result['success']:
+                print(f"✅ 인사이트 생성 완료: {insights_result['summary']['insight_count']}개 항목")
+                self.send_json_response(insights_result)
+            else:
+                print(f"❌ 인사이트 생성 실패: {insights_result.get('error', '알 수 없는 오류')}")
+                self.send_json_response(insights_result, status=500)
+            
+        except Exception as e:
+            print(f"❌ 인사이트 요청 실패: {str(e)}")
+            error_response = {
+                'success': False,
+                'error': f"인사이트 생성 실패: {str(e)}"
+            }
+            self.send_json_response(error_response, status=500)
     
     def send_json_response(self, data, status=200):
         """JSON 응답 전송 (캐시 방지 포함)"""

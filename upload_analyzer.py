@@ -216,7 +216,20 @@ class UploadAnalyzer:
                     if row.get('클릭율', 0) >= high_performance_threshold:
                         self.high_performance_messages.append(row)
                 
-                print(f"✅ 고성과 메시지: {len(self.high_performance_messages)}개 (최고: {sorted_data[0].get('클릭율', 0):.1f}%)")
+                # 고성과 기준 정의 저장
+                self.high_performance_criteria = {
+                    'threshold_rate': high_performance_threshold,
+                    'avg_rate': avg_rate,
+                    'description': f"평균 클릭률({avg_rate:.1f}%)의 120% 이상 또는 최소 8% 이상",
+                    'count': len(self.high_performance_messages),
+                    'top_percent': 20,
+                    'total_candidates': top_20_percent
+                }
+                
+                # 동일 문구 집계 처리
+                self.aggregated_high_performance = self.aggregate_high_performance_messages()
+                
+                print(f"✅ 고성과 메시지: {len(self.high_performance_messages)}개 (최고: {sorted_data[0].get('클릭율', 0):.1f}%), 집계된 문구: {len(self.aggregated_high_performance)}개")
             
             # 서비스별 분석 (JSON serializable)
             service_analysis = {}
@@ -300,7 +313,8 @@ class UploadAnalyzer:
                 'keyword_analysis': keyword_performance,
                 'time_analysis': weekday_analysis,
                 'overall_avg': overall_avg,
-                'best_click_rate': best_rate
+                'best_click_rate': best_rate,
+                'high_performance_criteria': getattr(self, 'high_performance_criteria', {})
             }
             
         except Exception as e:
@@ -370,12 +384,14 @@ class UploadAnalyzer:
                     'total_messages': len(self.data),
                     'avg_click_rate': self.performance_patterns.get('overall_avg', 0),
                     'best_click_rate': self.performance_patterns.get('best_click_rate', 0),
-                    'high_performance_count': len(self.high_performance_messages)
+                    'high_performance_count': len(self.high_performance_messages),
+                    'high_performance_criteria': self.performance_patterns.get('high_performance_criteria', {})
                 },
                 'service_analysis': clean_service_analysis,
                 'keyword_analysis': self.performance_patterns.get('keyword_analysis', {}),
                 'time_analysis': self.performance_patterns.get('time_analysis', {}),
-                'high_performance_messages': clean_high_performance
+                'high_performance_messages': clean_high_performance,
+                'aggregated_high_performance': getattr(self, 'aggregated_high_performance', [])
             }
         }
     
@@ -394,6 +410,195 @@ class UploadAnalyzer:
             'high_performance_count': len(self.high_performance_messages),
             'services_count': len(set(row.get('서비스명', '') for row in self.data))
         }
+    
+    def aggregate_high_performance_messages(self):
+        """동일 문구의 고성과 메시지 집계"""
+        try:
+            if not self.high_performance_messages:
+                return []
+            
+            # 문구별 그룹화
+            message_groups = {}
+            
+            for msg in self.high_performance_messages:
+                message_text = str(msg.get('발송 문구', '')).strip()
+                
+                # 동일 문구 그룹화
+                if message_text not in message_groups:
+                    message_groups[message_text] = {
+                        'message': message_text,
+                        'occurrences': [],
+                        'total_sends': 0,
+                        'total_clicks': 0,
+                        'click_rates': [],
+                        'services': set(),
+                        'dates': []
+                    }
+                
+                group = message_groups[message_text]
+                group['occurrences'].append(msg)
+                group['total_sends'] += msg.get('발송회원수', 0)
+                
+                # 클릭 수 계산 (클릭률 * 발송수)
+                click_rate = msg.get('클릭율', 0)
+                send_count = msg.get('발송회원수', 0)
+                clicks = int((click_rate / 100) * send_count) if send_count > 0 else 0
+                group['total_clicks'] += clicks
+                
+                group['click_rates'].append(click_rate)
+                group['services'].add(msg.get('서비스명', '기타'))
+                group['dates'].append(msg.get('발송일', ''))
+            
+            # 집계 결과 계산
+            aggregated_results = []
+            for message_text, group in message_groups.items():
+                # 평균 클릭률 계산
+                avg_click_rate = sum(group['click_rates']) / len(group['click_rates']) if group['click_rates'] else 0
+                
+                # 최고/최저 클릭률
+                max_click_rate = max(group['click_rates']) if group['click_rates'] else 0
+                min_click_rate = min(group['click_rates']) if group['click_rates'] else 0
+                
+                # 총 클릭률 (전체 클릭수 / 전체 발송수)
+                total_click_rate = (group['total_clicks'] / group['total_sends'] * 100) if group['total_sends'] > 0 else 0
+                
+                aggregated_results.append({
+                    'message': message_text,
+                    'send_count': len(group['occurrences']),  # 발송 횟수
+                    'total_sends': group['total_sends'],      # 총 발송 회원수
+                    'total_clicks': group['total_clicks'],   # 총 클릭 수
+                    'avg_click_rate': round(avg_click_rate, 2),
+                    'max_click_rate': round(max_click_rate, 2),
+                    'min_click_rate': round(min_click_rate, 2),
+                    'total_click_rate': round(total_click_rate, 2),  # 전체 기준 클릭률
+                    'services': list(group['services']),
+                    'date_range': {
+                        'first': min(group['dates']) if group['dates'] else '',
+                        'last': max(group['dates']) if group['dates'] else ''
+                    },
+                    'occurrences': group['occurrences']
+                })
+            
+            # 전체 클릭률 기준으로 정렬
+            aggregated_results.sort(key=lambda x: x['total_click_rate'], reverse=True)
+            
+            print(f"📊 고성과 메시지 집계 완료: {len(message_groups)}개 고유 문구")
+            return aggregated_results
+            
+        except Exception as e:
+            print(f"❌ 고성과 메시지 집계 실패: {e}")
+            return []
+    
+    def generate_natural_language_insights(self):
+        """자연어 기반 CSV 분석 인사이트 생성"""
+        try:
+            if not self.analysis_complete or not self.data:
+                return {
+                    'success': False,
+                    'error': '분석된 데이터가 없습니다.'
+                }
+            
+            insights = []
+            
+            # 1. 전체 성과 개요
+            total_messages = len(self.data)
+            avg_rate = self.performance_patterns.get('overall_avg', 0)
+            best_rate = self.performance_patterns.get('best_click_rate', 0)
+            high_perf_count = len(self.high_performance_messages)
+            
+            insights.append({
+                'category': '📊 전체 성과 개요',
+                'content': f"총 {total_messages}개의 알림 메시지를 분석한 결과, 평균 클릭률은 {avg_rate:.1f}%이며 최고 성과는 {best_rate:.1f}%를 기록했습니다. 전체 메시지 중 {high_perf_count}개({(high_perf_count/total_messages*100):.1f}%)가 고성과 메시지로 분류되었습니다."
+            })
+            
+            # 2. 서비스별 성과 분석
+            service_analysis = self.performance_patterns.get('service_analysis', {})
+            if service_analysis:
+                best_service = max(service_analysis.items(), key=lambda x: x[1].get('avg_click_rate', 0))
+                worst_service = min(service_analysis.items(), key=lambda x: x[1].get('avg_click_rate', 0))
+                
+                insights.append({
+                    'category': '🏷️ 서비스별 성과',
+                    'content': f"서비스별 분석 결과, '{best_service[0]}' 서비스가 평균 {best_service[1]['avg_click_rate']:.1f}%로 가장 높은 성과를 보였고, '{worst_service[0]}' 서비스는 {worst_service[1]['avg_click_rate']:.1f}%로 개선이 필요합니다. 총 {len(service_analysis)}개 서비스가 분석되었습니다."
+                })
+            
+            # 3. 키워드 효과 분석
+            keyword_analysis = self.performance_patterns.get('keyword_analysis', {})
+            if keyword_analysis:
+                effective_keywords = [(k, v[0]) for k, v in keyword_analysis.items() if isinstance(v, list) and v[0] > avg_rate]
+                effective_keywords.sort(key=lambda x: x[1], reverse=True)
+                
+                if effective_keywords:
+                    top_3_keywords = effective_keywords[:3]
+                    keyword_text = ", ".join([f"'{k}' ({r:.1f}%)" for k, r in top_3_keywords])
+                    insights.append({
+                        'category': '🔑 효과적인 키워드',
+                        'content': f"키워드 분석 결과, {keyword_text} 순으로 높은 클릭률을 보였습니다. 이러한 키워드들을 활용하면 메시지 성과 향상을 기대할 수 있습니다."
+                    })
+            
+            # 4. 시간대별 성과
+            time_analysis = self.performance_patterns.get('time_analysis', {})
+            if time_analysis:
+                weekday_performance = [(day, data.get('avg_click_rate', 0)) for day, data in time_analysis.items() if data.get('count', 0) > 0]
+                weekday_performance.sort(key=lambda x: x[1], reverse=True)
+                
+                if weekday_performance:
+                    best_day = weekday_performance[0]
+                    worst_day = weekday_performance[-1]
+                    insights.append({
+                        'category': '📅 요일별 성과',
+                        'content': f"요일별 분석에서는 {best_day[0]}요일이 평균 {best_day[1]:.1f}%로 가장 효과적이었고, {worst_day[0]}요일이 {worst_day[1]:.1f}%로 가장 낮았습니다. 발송 시점 최적화를 통해 성과 개선이 가능합니다."
+                    })
+            
+            # 5. 고성과 메시지 패턴 분석
+            if self.aggregated_high_performance:
+                top_message = self.aggregated_high_performance[0]
+                repeated_messages = [msg for msg in self.aggregated_high_performance if msg['send_count'] > 1]
+                
+                insights.append({
+                    'category': '🏆 고성과 메시지 패턴',
+                    'content': f"최고 성과 메시지는 '{top_message['message'][:30]}...'로 {top_message['total_click_rate']:.1f}%의 클릭률을 기록했습니다. {len(repeated_messages)}개의 메시지가 여러 번 발송되었으며, 이는 검증된 효과적인 문구임을 의미합니다."
+                })
+            
+            # 6. 개선 제안
+            improvement_suggestions = []
+            
+            # 평균보다 낮은 서비스 식별
+            if service_analysis:
+                underperforming_services = [name for name, data in service_analysis.items() if data.get('avg_click_rate', 0) < avg_rate]
+                if underperforming_services:
+                    improvement_suggestions.append(f"{', '.join(underperforming_services)} 서비스의 메시지 최적화")
+            
+            # 효과적인 키워드 활용도 낮은 경우
+            if keyword_analysis and effective_keywords:
+                low_usage_keywords = [k for k, v in keyword_analysis.items() if isinstance(v, list) and v[0] > avg_rate and v[1] < 3]
+                if low_usage_keywords:
+                    improvement_suggestions.append(f"고효과 키워드({', '.join(low_usage_keywords[:2])}) 활용도 증대")
+            
+            if improvement_suggestions:
+                insights.append({
+                    'category': '💡 개선 제안',
+                    'content': f"분석 결과를 바탕으로 다음과 같은 개선 방안을 제안합니다: {' / '.join(improvement_suggestions)}. 이를 통해 전체 평균 클릭률을 {avg_rate:.1f}%에서 {(avg_rate * 1.2):.1f}%까지 향상시킬 수 있을 것으로 예상됩니다."
+                })
+            
+            return {
+                'success': True,
+                'insights': insights,
+                'summary': {
+                    'analysis_date': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                    'data_points': total_messages,
+                    'insight_count': len(insights)
+                }
+            }
+            
+        except Exception as e:
+            print(f"❌ 인사이트 생성 실패: {e}")
+            import traceback
+            traceback.print_exc()
+            return {
+                'success': False,
+                'error': f"인사이트 생성 중 오류 발생: {str(e)}"
+            }
 
 # 전역 분석기 인스턴스
 analyzer = UploadAnalyzer()
