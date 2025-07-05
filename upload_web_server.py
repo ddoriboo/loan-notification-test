@@ -681,61 +681,105 @@ class UploadHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
 def run_upload_server(port=None):
     """서버 실행"""
-    # Railway에서 PORT 환경변수 사용
-    if port is None:
-        port = int(os.environ.get('PORT', '8080'))
-    
-    # 호스트 설정
-    host = os.environ.get('SERVER_HOST', '0.0.0.0')
-    
-    print("🚀 CSV 업로드 기반 AI 문구 생성기 서버 시작!")
-    print("=" * 60)
-    print("🎯 주요 기능:")
-    print("  • CSV 파일 업로드 및 즉시 분석")
-    print("  • 파일 배포 의존성 제거")
-    print("  • 실시간 데이터 기반 AI 문구 생성")
-    print("  • GPT-4o 모델 활용")
-    print("  • 메모리 기반 안정적 처리")
-    print("=" * 60)
-    print(f"📍 Server: {host}:{port}")
-    print("🌐 CSV를 업로드하여 시작하세요!")
-    print("🔄 Ctrl+C로 종료")
-    print("=" * 60)
-    
-    with socketserver.TCPServer((host, port), UploadHTTPRequestHandler) as httpd:
+    try:
+        print("🚨 DEBUG: run_upload_server 함수 시작!")
+        
+        # Railway에서 PORT 환경변수 사용
+        if port is None:
+            port_env = os.environ.get('PORT', '8080')
+            print(f"🚨 DEBUG: PORT 환경변수 = {port_env}")
+            port = int(port_env)
+        
+        # 호스트 설정
+        host = os.environ.get('SERVER_HOST', '0.0.0.0')
+        print(f"🚨 DEBUG: HOST = {host}, PORT = {port}")
+        
+        print("🚀 CSV 업로드 기반 AI 문구 생성기 서버 시작!")
+        print("=" * 60)
+        print("🎯 주요 기능:")
+        print("  • CSV 파일 업로드 및 즉시 분석")
+        print("  • 파일 배포 의존성 제거")
+        print("  • 실시간 데이터 기반 AI 문구 생성")
+        print("  • GPT-4o 모델 활용")
+        print("  • 메모리 기반 안정적 처리")
+        print("=" * 60)
+        print(f"📍 Server: {host}:{port}")
+        print("🌐 CSV를 업로드하여 시작하세요!")
+        print("🔄 Ctrl+C로 종료")
+        print("=" * 60)
+        
+        print("🚨 DEBUG: TCPServer 생성 중...")
+        
+        # 소켓 재사용 허용 (배포 환경에서 중요)
+        socketserver.TCPServer.allow_reuse_address = True
+        
+        httpd = socketserver.TCPServer((host, port), UploadHTTPRequestHandler)
+        print("🚨 DEBUG: TCPServer 생성 완료!")
+        print(f"🚨 DEBUG: 서버 주소 = {httpd.server_address}")
+        
+        print("🚨 DEBUG: serve_forever 시작...")
         try:
             httpd.serve_forever()
         except KeyboardInterrupt:
             print("\n👋 서버가 종료되었습니다.")
+        except Exception as e:
+            print(f"🚨 ERROR: serve_forever 실패 - {str(e)}")
+            raise
+        finally:
+            print("🚨 DEBUG: 서버 정리 중...")
             httpd.server_close()
+    except Exception as e:
+        print(f"🚨 ERROR: 서버 시작 실패 - {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise
 
 if __name__ == "__main__":
-    # 강제 실행 표시
-    print("🚨 UPLOAD_WEB_SERVER.PY 강제 실행! 🚨")
-    print("=" * 50)
-    print("📍 이 메시지가 보이면 올바른 서버가 실행된 것입니다!")
-    print("=" * 50)
-    
-    # 환경 확인
-    print("🔍 서버 환경 확인")
-    print("=" * 40)
-    
-    cwd = os.getcwd()
-    print(f"📁 작업 디렉토리: {cwd}")
-    
-    # 환경변수 확인
-    openai_key = os.environ.get('OPENAI_API_KEY')
-    print(f"🔑 OPENAI_API_KEY: {'✅ 설정됨' if openai_key else '❌ 없음 (시뮬레이션 모드)'}")
-    
-    # 핵심 파일 확인
-    key_files = ['upload_analyzer.py', 'upload_web_interface.html']
-    for file in key_files:
-        if os.path.exists(file):
-            print(f"✅ {file} 존재")
-        else:
-            print(f"❌ {file} 없음")
-    
-    print("=" * 40)
-    
-    # 서버 시작
-    run_upload_server()
+    try:
+        # 강제 실행 표시
+        print("🚨 UPLOAD_WEB_SERVER.PY 강제 실행! 🚨")
+        print("=" * 50)
+        print("📍 이 메시지가 보이면 올바른 서버가 실행된 것입니다!")
+        print("=" * 50)
+        
+        # 환경 확인
+        print("🔍 서버 환경 확인")
+        print("=" * 40)
+        
+        cwd = os.getcwd()
+        print(f"📁 작업 디렉토리: {cwd}")
+        
+        # 파일 목록 출력
+        try:
+            files = os.listdir('.')
+            print(f"📋 디렉토리 내 파일들: {files}")
+        except Exception as e:
+            print(f"❌ 파일 목록 읽기 실패: {e}")
+        
+        # 환경변수 확인
+        openai_key = os.environ.get('OPENAI_API_KEY')
+        port_env = os.environ.get('PORT')
+        host_env = os.environ.get('SERVER_HOST')
+        print(f"🔑 OPENAI_API_KEY: {'✅ 설정됨' if openai_key else '❌ 없음 (시뮬레이션 모드)'}")
+        print(f"🌐 PORT 환경변수: {port_env}")
+        print(f"🏠 SERVER_HOST 환경변수: {host_env}")
+        
+        # 핵심 파일 확인
+        key_files = ['upload_analyzer.py', 'upload_web_interface.html']
+        for file in key_files:
+            if os.path.exists(file):
+                print(f"✅ {file} 존재")
+            else:
+                print(f"❌ {file} 없음")
+        
+        print("=" * 40)
+        print("🚨 DEBUG: 서버 시작 호출 직전...")
+        
+        # 서버 시작
+        run_upload_server()
+        
+    except Exception as e:
+        print(f"🚨 CRITICAL ERROR: 메인 실행 실패 - {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise
