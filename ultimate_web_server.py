@@ -319,5 +319,37 @@ def run_ultimate_server(port=None):
             httpd.server_close()
 
 if __name__ == "__main__":
+    # Railway 환경 디버깅 정보 출력
+    print("🔍 서버 시작 전 환경 확인")
+    print("=" * 40)
+    
+    import os
+    cwd = os.getcwd()
+    print(f"📁 작업 디렉토리: {cwd}")
+    
+    # CSV 파일 존재 확인
+    csv_file = "202507_.csv"
+    if os.path.exists(csv_file):
+        size = os.path.getsize(csv_file)
+        print(f"✅ CSV 파일 발견: {csv_file} ({size:,} bytes)")
+    else:
+        print(f"❌ CSV 파일 없음: {csv_file}")
+        print("📂 현재 디렉토리 파일 목록:")
+        try:
+            files = [f for f in os.listdir(cwd) if f.endswith('.csv')]
+            if files:
+                for f in files:
+                    print(f"  - {f}")
+            else:
+                print("  CSV 파일이 없습니다")
+        except Exception as e:
+            print(f"  디렉토리 읽기 실패: {e}")
+    
+    # 환경변수 확인
+    openai_key = os.environ.get('OPENAI_API_KEY')
+    print(f"🔑 OPENAI_API_KEY: {'✅' if openai_key else '❌'}")
+    
+    print("=" * 40)
+    
     # 서버 시작
     run_ultimate_server()
