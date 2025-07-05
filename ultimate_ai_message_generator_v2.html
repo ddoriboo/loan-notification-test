@@ -571,6 +571,8 @@
         
         // 대시보드 데이터 로드
         async function loadDashboardData() {
+            console.log('🔄 대시보드 데이터 로딩 시작...');
+            
             try {
                 const response = await fetch('/api/dashboard', {
                     method: 'POST',
@@ -579,64 +581,100 @@
                     }
                 });
                 
+                console.log('📡 응답 상태:', response.status);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
                 const result = await response.json();
+                console.log('📊 받은 데이터:', result);
                 
                 if (result.success) {
                     dashboardData = result.data;
+                    console.log('✅ 대시보드 데이터 설정 완료');
+                    
                     updateDashboard();
                     updateHighPerformanceMessages();
                     updateServiceAnalysis();
                     updateTimingAnalysis();
+                    
+                    console.log('✅ 모든 UI 업데이트 완료');
                 } else {
+                    console.error('❌ 서버 에러:', result.error);
                     showError('데이터 로드 실패: ' + result.error);
                 }
             } catch (error) {
+                console.error('❌ 네트워크 에러:', error);
                 showError('서버 연결 실패: ' + error.message);
             }
         }
         
         // 대시보드 업데이트
         function updateDashboard() {
-            const summary = dashboardData.summary;
-            const statsHtml = `
-                <div class="stat-card">
-                    <div class="stat-number">${summary.total_messages.toLocaleString()}</div>
-                    <div class="stat-label">총 발송 메시지</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-number">${summary.avg_click_rate.toFixed(2)}%</div>
-                    <div class="stat-label">평균 클릭률</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-number">${summary.best_click_rate.toFixed(1)}%</div>
-                    <div class="stat-label">최고 클릭률</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-number">${summary.high_performance_count}</div>
-                    <div class="stat-label">고성과 메시지</div>
-                </div>
-            `;
-            document.getElementById('statsOverview').innerHTML = statsHtml;
-            
-            // 키워드 차트 업데이트
-            const keywordHtml = Object.entries(dashboardData.keyword_analysis)
-                .map(([keyword, stats]) => {
-                    const width = (stats[0] / 15) * 100; // 15%를 100%로 정규화
-                    return `
-                        <div class="keyword-bar">
-                            <div class="keyword-name">${keyword}</div>
-                            <div class="keyword-progress">
-                                <div class="keyword-fill" style="width: ${width}%">
-                                    ${stats[0].toFixed(1)}%
+            try {
+                console.log('📊 대시보드 업데이트 시작...');
+                console.log('데이터 확인:', dashboardData);
+                
+                const summary = dashboardData.summary;
+                console.log('요약 데이터:', summary);
+                
+                const statsHtml = `
+                    <div class="stat-card">
+                        <div class="stat-number">${summary.total_messages.toLocaleString()}</div>
+                        <div class="stat-label">총 발송 메시지</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${summary.avg_click_rate.toFixed(2)}%</div>
+                        <div class="stat-label">평균 클릭률</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${summary.best_click_rate.toFixed(1)}%</div>
+                        <div class="stat-label">최고 클릭률</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${summary.high_performance_count}</div>
+                        <div class="stat-label">고성과 메시지</div>
+                    </div>
+                `;
+                document.getElementById('statsOverview').innerHTML = statsHtml;
+                console.log('✅ 통계 카드 업데이트 완료');
+                
+                // 키워드 차트 업데이트
+                const keywordAnalysis = dashboardData.keyword_analysis || {};
+                console.log('키워드 분석:', keywordAnalysis);
+                
+                const keywordHtml = Object.entries(keywordAnalysis)
+                    .map(([keyword, stats]) => {
+                        const rate = Array.isArray(stats) ? stats[0] : (stats.rate || 0);
+                        const count = Array.isArray(stats) ? stats[1] : (stats.count || 0);
+                        const width = Math.min((rate / 15) * 100, 100); // 15%를 100%로 정규화
+                        return `
+                            <div class="keyword-bar">
+                                <div class="keyword-name">${keyword}</div>
+                                <div class="keyword-progress">
+                                    <div class="keyword-fill" style="width: ${width}%">
+                                        ${rate.toFixed(1)}%
+                                    </div>
+                                </div>
+                                <div style="width: 80px; text-align: right; color: #666;">
+                                    ${count}건
                                 </div>
                             </div>
-                            <div style="width: 80px; text-align: right; color: #666;">
-                                ${stats[1]}건
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-            document.getElementById('keywordChart').innerHTML = keywordHtml;
+                        `;
+                    }).join('');
+                    
+                if (keywordHtml) {
+                    document.getElementById('keywordChart').innerHTML = keywordHtml;
+                    console.log('✅ 키워드 차트 업데이트 완료');
+                } else {
+                    document.getElementById('keywordChart').innerHTML = '<p>키워드 데이터가 없습니다.</p>';
+                    console.log('⚠️ 키워드 데이터 없음');
+                }
+            } catch (error) {
+                console.error('❌ 대시보드 업데이트 오류:', error);
+                showError('대시보드 업데이트 실패: ' + error.message);
+            }
         }
         
         // 고성과 메시지 업데이트
@@ -795,6 +833,25 @@
         // 에러 표시
         function showError(message) {
             console.error('Error:', message);
+            
+            // 에러를 대시보드에 표시
+            const errorHtml = `
+                <div class="error-message">
+                    <div class="error-title">⚠️ 데이터 로드 오류</div>
+                    <div>${message}</div>
+                    <div style="margin-top: 15px;">
+                        <button onclick="loadDashboardData()" class="btn" style="padding: 8px 16px; font-size: 0.9em;">
+                            🔄 다시 시도
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            // 모든 탭에 에러 표시
+            document.getElementById('statsOverview').innerHTML = errorHtml;
+            document.getElementById('highPerformanceMessages').innerHTML = errorHtml;
+            document.getElementById('serviceAnalysis').innerHTML = errorHtml;
+            document.getElementById('timingAnalysis').innerHTML = errorHtml;
         }
         
         function showGenerationError(message) {

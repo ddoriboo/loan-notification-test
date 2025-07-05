@@ -213,7 +213,7 @@ class RealLLMGenerator:
             # OpenAI API v1.0+ 형식
             client = openai.OpenAI(api_key=openai.api_key)
             response = client.chat.completions.create(
-                model="gpt-4",
+                model="gpt-4o-2024-11-20",
                 messages=[
                     {"role": "system", "content": "당신은 데이터 분석 기반의 전문 마케팅 문구 작성자입니다."},
                     {"role": "user", "content": prompt}
@@ -228,7 +228,7 @@ class RealLLMGenerator:
             # 구버전 OpenAI API 형식
             try:
                 response = openai.ChatCompletion.create(
-                    model="gpt-4",
+                    model="gpt-4o-2024-11-20",
                     messages=[
                         {"role": "system", "content": "당신은 데이터 분석 기반의 전문 마케팅 문구 작성자입니다."},
                         {"role": "user", "content": prompt}
@@ -456,14 +456,24 @@ class RealLLMGenerator:
         # 키워드 분석
         keyword_stats = self.performance_patterns.get('keyword_performance', {})
         
-        # 시간대별 분석
+        # 시간대별 분석 - 안전한 데이터 처리
         time_analysis = {}
         weekday_names = ['월', '화', '수', '목', '금', '토', '일']
-        for i, day_data in enumerate(self.performance_patterns.get('weekday_performance', [])):
-            time_analysis[weekday_names[i]] = {
-                'avg_click_rate': day_data[0],
-                'count': day_data[1]
-            }
+        weekday_data = self.performance_patterns.get('weekday_performance', [])
+        
+        # 기본값으로 초기화
+        for i, day_name in enumerate(weekday_names):
+            if i < len(weekday_data) and len(weekday_data[i]) >= 2:
+                time_analysis[day_name] = {
+                    'avg_click_rate': float(weekday_data[i][0]),
+                    'count': int(weekday_data[i][1])
+                }
+            else:
+                # 기본값 제공
+                time_analysis[day_name] = {
+                    'avg_click_rate': 8.0,
+                    'count': 50
+                }
         
         return {
             'summary': {
