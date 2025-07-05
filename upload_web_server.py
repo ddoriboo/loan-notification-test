@@ -233,7 +233,7 @@ class UploadHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             
             client = openai.OpenAI(api_key=openai.api_key)
             response = client.chat.completions.create(
-                model="gpt-4o-mini",  # 더 안정적인 모델로 변경
+                model="gpt-4o-2024-11-20",  # 최신 GPT-4o 모델 사용
                 messages=[
                     {"role": "system", "content": "당신은 한국어 대출 서비스 마케팅 전문가입니다. 실제 데이터를 분석하여 효과적인 알림 문구를 생성합니다."},
                     {"role": "user", "content": prompt}
