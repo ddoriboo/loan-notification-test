@@ -375,16 +375,36 @@ class UploadHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             return []
     
     def send_json_response(self, data, status=200):
-        """JSON 응답 전송"""
-        self.send_response(status)
-        self.send_header('Content-Type', 'application/json; charset=utf-8')
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'POST, GET, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
-        self.end_headers()
-        
-        json_str = json.dumps(data, ensure_ascii=False, indent=2)
-        self.wfile.write(json_str.encode('utf-8'))
+        """JSON 응답 전송 (datetime 안전 처리)"""
+        try:
+            self.send_response(status)
+            self.send_header('Content-Type', 'application/json; charset=utf-8')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Access-Control-Allow-Methods', 'POST, GET, OPTIONS')
+            self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+            self.end_headers()
+            
+            # JSON serialization with datetime handling
+            json_str = json.dumps(data, ensure_ascii=False, indent=2, default=str)
+            self.wfile.write(json_str.encode('utf-8'))
+            
+        except Exception as e:
+            print(f"❌ JSON 응답 전송 실패: {str(e)}")
+            # Fallback: 기본 에러 응답
+            try:
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json; charset=utf-8')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                
+                error_data = {
+                    'success': False,
+                    'error': f"JSON 직렬화 실패: {str(e)}"
+                }
+                fallback_json = json.dumps(error_data, ensure_ascii=False)
+                self.wfile.write(fallback_json.encode('utf-8'))
+            except:
+                pass  # 최종 fallback 실패시 무시
     
     def do_OPTIONS(self):
         """CORS preflight 요청 처리"""
