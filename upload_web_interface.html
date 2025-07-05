@@ -970,11 +970,11 @@
             weekdayChartElement.innerHTML = weekdayHtml;
         }
         
-        // 다른 탭에서 요약 정보 표시
+        // 다른 탭에서 요약 정보 표시 (핵심 지표만)
         function showSummaryInOtherTabs(tabName) {
             if (!analysisData) return;
             
-            console.log(`showSummaryInOtherTabs 호출됨 - 탭: ${tabName}`);
+            console.log(`showSummaryInOtherTabs 호출됨 - 탭: ${tabName} (4개 지표만 표시)`);
             
             // 기존 요약 정보 제거
             const existingSummary = document.querySelector('.tab-summary-overlay');
@@ -983,7 +983,7 @@
                 console.log('기존 요약 정보 제거됨');
             }
             
-            // 요약 정보 생성
+            // 핵심 4개 지표만 포함한 요약 정보 생성 (요일별 분석 제외)
             const summaryOverlay = document.createElement('div');
             summaryOverlay.className = 'tab-summary-overlay';
             summaryOverlay.style.cssText = `
@@ -998,11 +998,14 @@
             const summary = analysisData.summary;
             summaryOverlay.innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <h3 style="margin: 0; color: #333;">📊 전체 분석 요약</h3>
+                    <h3 style="margin: 0; color: #333;">📊 핵심 지표 요약</h3>
                     <button onclick="showTab('summary')" 
                             style="background: #667eea; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.9em;">
-                        상세보기
+                        전체 분석 보기
                     </button>
+                </div>
+                <div style="color: #666; font-size: 0.9em; margin-bottom: 15px;">
+                    📋 4개 핵심 지표만 표시됩니다. 요일별 성과분석 등 상세 내용은 '전체 분석 보기'를 클릭하세요.
                 </div>
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
                     <div style="text-align: center;">
