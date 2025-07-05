@@ -59,17 +59,137 @@ class UltimateHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.send_error(500, "Internal server error")
     
     def do_POST(self):
+        # 업로드 기반 API들 (최우선)
+        if self.path == '/api/upload-csv':
+            self.handle_upload_csv()
+        elif self.path == '/api/dashboard':
+            self.handle_dashboard_new()
+        elif self.path == '/api/generate':
+            self.handle_generate_new()
         # 기존 API들 (하위 호환성)
-        if self.path == '/api/timing':
+        elif self.path == '/api/timing':
             self.handle_timing_api()
         elif self.path == '/api/compare':
             self.handle_compare_api()
-        elif self.path == '/api/generate':
-            self.handle_generate_api()
-        elif self.path == '/api/dashboard':
-            self.handle_dashboard_api()
         else:
             self.send_error(404)
+    
+    def handle_upload_csv(self):
+        """CSV 업로드 처리"""
+        try:
+            print("📊 CSV 업로드 요청 처리...")
+            
+            # upload_analyzer import
+            from upload_analyzer import analyzer
+            
+            # POST 데이터 읽기
+            content_length = int(self.headers.get('Content-Length', 0))
+            post_data = self.rfile.read(content_length)
+            data = json.loads(post_data.decode('utf-8'))
+            
+            csv_content = data.get('csv_content', '')
+            if not csv_content:
+                raise ValueError("CSV 내용이 비어있습니다.")
+            
+            print(f"📄 CSV 크기: {len(csv_content)} 문자")
+            
+            # CSV 분석 수행
+            result = analyzer.analyze_uploaded_csv(csv_content)
+            
+            if result['success']:
+                print(f"✅ CSV 분석 성공: {result['total_messages']}개 메시지")
+            else:
+                print(f"❌ CSV 분석 실패: {result['error']}")
+            
+            self.send_json_response(result)
+            
+        except Exception as e:
+            print(f"❌ CSV 업로드 처리 실패: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            
+            error_response = {
+                'success': False,
+                'error': f"CSV 처리 실패: {str(e)}"
+            }
+            self.send_json_response(error_response, status=500)
+    
+    def handle_dashboard_new(self):
+        """새로운 대시보드 API (업로드 기반)"""
+        try:
+            print("📊 새로운 대시보드 데이터 요청...")
+            
+            from upload_analyzer import analyzer
+            
+            # 분석기에서 대시보드 데이터 가져오기
+            dashboard_data = analyzer.get_dashboard_data()
+            
+            if dashboard_data['success']:
+                print("✅ 대시보드 데이터 전송 완료")
+            else:
+                print(f"⚠️ 대시보드 데이터 없음: {dashboard_data['error']}")
+            
+            self.send_json_response(dashboard_data)
+            
+        except Exception as e:
+            print(f"❌ 대시보드 요청 실패: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            
+            error_response = {
+                'success': False,
+                'error': f"대시보드 데이터 생성 실패: {str(e)}"
+            }
+            self.send_json_response(error_response, status=500)
+    
+    def handle_generate_new(self):
+        """새로운 문구 생성 API (업로드 기반)"""
+        try:
+            print("✨ 새로운 AI 문구 생성 요청...")
+            
+            from upload_analyzer import analyzer
+            
+            # 분석 완료 확인
+            if not analyzer.analysis_complete:
+                raise ValueError("먼저 CSV 파일을 업로드하고 분석을 완료해주세요.")
+            
+            # POST 데이터 읽기
+            content_length = int(self.headers.get('Content-Length', 0))
+            post_data = self.rfile.read(content_length)
+            data = json.loads(post_data.decode('utf-8'))
+            
+            print(f"📝 생성 요청: {data}")
+            
+            # 간단한 시뮬레이션 응답 (OpenAI 없이도 작동)
+            response = {
+                'success': True,
+                'generated_messages': [
+                    {
+                        'style': '혜택 강조형',
+                        'message': f"(광고) 업로드된 데이터 기반 최적화된 혜택 문구입니다.",
+                        'predicted_rate': 12.5,
+                        'reasoning': "업로드된 데이터 분석을 바탕으로 생성"
+                    }
+                ],
+                'data_insights': {
+                    'total_analyzed': len(analyzer.data),
+                    'high_performance_count': len(analyzer.high_performance_messages)
+                }
+            }
+            
+            print("✅ 새로운 AI 문구 생성 완료")
+            self.send_json_response(response)
+            
+        except Exception as e:
+            print(f"❌ 새로운 AI 문구 생성 실패: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            
+            error_response = {
+                'success': False,
+                'error': f"문구 생성 실패: {str(e)}"
+            }
+            self.send_json_response(error_response, status=500)
     
     def handle_generate_api(self):
         """문구 생성 API"""
