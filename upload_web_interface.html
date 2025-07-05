@@ -621,6 +621,24 @@
             document.getElementById('analysisProgress').style.display = 'none';
             document.getElementById('tabsContainer').style.display = 'block';
             document.querySelector('.tab-content.active').style.display = 'block';
+            
+            // 인사이트 탭 준비 상태 업데이트
+            const insightsContent = document.getElementById('insightsContent');
+            const generateInsightsBtn = document.getElementById('generateInsightsBtn');
+            
+            if (analysisData && analysisData.success) {
+                insightsContent.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #666;">
+                        <div style="font-size: 3em; margin-bottom: 15px;">📊</div>
+                        <div>CSV 분석이 완료되었습니다!</div>
+                        <div>아래 버튼을 클릭하여 AI 인사이트를 생성하세요.</div>
+                        <div style="margin-top: 10px; font-size: 0.9em; color: #999;">
+                            총 ${analysisData.total_messages}개 메시지 분석 준비 완료
+                        </div>
+                    </div>
+                `;
+                generateInsightsBtn.style.display = 'inline-block';
+            }
         }
         
         // 대시보드 데이터 로드
@@ -873,10 +891,25 @@
             
             // insights 탭 선택시 생성 버튼 표시
             const generateInsightsBtn = document.getElementById('generateInsightsBtn');
-            if (tabName === 'insights' && analysisData) {
-                generateInsightsBtn.style.display = 'inline-block';
-            } else if (tabName === 'insights') {
-                generateInsightsBtn.style.display = 'none';
+            if (tabName === 'insights') {
+                if (analysisData && analysisData.success) {
+                    generateInsightsBtn.style.display = 'inline-block';
+                    // 인사이트 안내 메시지 업데이트
+                    const insightsContent = document.getElementById('insightsContent');
+                    if (insightsContent.innerHTML.includes('먼저 CSV 파일을 업로드하세요')) {
+                        insightsContent.innerHTML = `
+                            <div style="text-align: center; padding: 40px; color: #666;">
+                                <div style="font-size: 3em; margin-bottom: 15px;">📊</div>
+                                <div>아래 버튼을 클릭하여 AI 인사이트를 생성하세요.</div>
+                                <div style="margin-top: 10px; font-size: 0.9em; color: #999;">
+                                    총 ${analysisData.total_messages}개 메시지 분석 준비 완료
+                                </div>
+                            </div>
+                        `;
+                    }
+                } else {
+                    generateInsightsBtn.style.display = 'none';
+                }
             }
             
             // 탭 컨테이너 상단으로 스크롤
@@ -947,10 +980,12 @@
         
         // 인사이트 생성 함수
         async function generateInsights() {
-            if (!analysisData) {
+            if (!analysisData || !analysisData.success) {
                 alert('먼저 CSV 파일을 업로드하고 분석을 완료해주세요.');
                 return;
             }
+            
+            console.log('인사이트 생성 시작 - analysisData:', analysisData);
             
             const generateBtn = document.getElementById('generateInsightsBtn');
             const insightsContent = document.getElementById('insightsContent');
