@@ -132,8 +132,10 @@ api_keys.txt
 # Generated reports (keep structure, ignore timestamped files)
 *_20*.html
 *_20*.json
-*_20*.csv
 *_20*.txt
+
+# Keep main data file but ignore generated timestamped reports
+!202507_.csv
 
 # IDE
 .vscode/
