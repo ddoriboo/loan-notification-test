@@ -25,13 +25,19 @@ class UploadAnalyzer:
         """업로드된 CSV 내용 분석"""
         try:
             print("📊 업로드된 CSV 분석 시작...")
+            print(f"📄 CSV 내용 미리보기: {csv_content[:200]}...")
+            
+            # 데이터 완전 초기화
+            self.data = []
+            self.high_performance_messages = []
+            self.performance_patterns = {}
+            self.analysis_complete = False
             
             # CSV 파싱
             csv_file = io.StringIO(csv_content)
             reader = csv.DictReader(csv_file)
             
-            self.data = []
-            self.high_performance_messages = []
+            print(f"📋 CSV 헤더: {reader.fieldnames}")
             
             # 행별 처리
             for i, row in enumerate(reader):
@@ -44,10 +50,6 @@ class UploadAnalyzer:
                     
                     if processed_row:
                         self.data.append(processed_row)
-                        
-                        # 고성과 메시지 수집 (클릭률 8% 이상)
-                        if processed_row.get('클릭율', 0) >= 8.0:
-                            self.high_performance_messages.append(processed_row)
                             
                 except Exception as e:
                     print(f"⚠️ 행 {i+1} 처리 실패: {e}")
@@ -182,6 +184,24 @@ class UploadAnalyzer:
     def analyze_patterns(self):
         """성과 패턴 분석"""
         try:
+            # 고성과 메시지 기준 동적 계산
+            all_rates = [row.get('클릭율', 0) for row in self.data if row.get('클릭율', 0) > 0]
+            if all_rates:
+                avg_rate = sum(all_rates) / len(all_rates)
+                high_performance_threshold = max(avg_rate * 1.2, 8.0)  # 평균의 120% 또는 최소 8%
+                print(f"📈 고성과 기준: {high_performance_threshold:.1f}% (평균: {avg_rate:.1f}%)")
+                
+                # 고성과 메시지 수집 (상위 20% 또는 기준 이상)
+                sorted_data = sorted(self.data, key=lambda x: x.get('클릭율', 0), reverse=True)
+                top_20_percent = max(len(sorted_data) // 5, 10)  # 상위 20% 또는 최소 10개
+                
+                self.high_performance_messages = []
+                for row in sorted_data[:top_20_percent]:
+                    if row.get('클릭율', 0) >= high_performance_threshold:
+                        self.high_performance_messages.append(row)
+                
+                print(f"✅ 고성과 메시지: {len(self.high_performance_messages)}개 (최고: {sorted_data[0].get('클릭율', 0):.1f}%)")
+            
             # 서비스별 분석 (JSON serializable)
             service_analysis = {}
             for row in self.data:

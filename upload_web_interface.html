@@ -442,6 +442,17 @@
         <!-- 키워드 분석 탭 -->
         <div id="keywords" class="tab-content">
             <h2 style="margin-bottom: 25px;">🔑 키워드 성과 분석</h2>
+            
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 12px; margin-bottom: 25px;">
+                <h3 style="margin-bottom: 15px;">📋 분석 설명</h3>
+                <ul style="margin: 0; padding-left: 20px; line-height: 1.6;">
+                    <li><strong>클릭률</strong>: 해당 키워드가 포함된 메시지들의 평균 클릭률</li>
+                    <li><strong>사용 횟수</strong>: 전체 데이터에서 해당 키워드가 사용된 메시지 수</li>
+                    <li><strong>효과도</strong>: 클릭률이 높고 사용 빈도가 적절한 키워드일수록 효과적</li>
+                    <li><strong>추천</strong>: 🟢 12%+ (매우 효과적), 🟡 8-12% (효과적), 🔴 8% 미만 (개선 필요)</li>
+                </ul>
+            </div>
+            
             <div class="keyword-chart" id="keywordAnalysis"></div>
         </div>
         
@@ -667,21 +678,41 @@
             }).join('');
             document.getElementById('highPerformanceMessages').innerHTML = messagesHtml;
             
-            // 키워드 분석
+            // 키워드 분석 (색상 코딩 추가)
             const keywordHtml = Object.entries(data.keyword_analysis).map(([keyword, stats]) => {
                 const rate = Array.isArray(stats) ? stats[0] : 0;
                 const count = Array.isArray(stats) ? stats[1] : 0;
-                const width = (rate / 15) * 100;
+                const width = (rate / 20) * 100; // 최대 20%로 조정
+                
+                // 효과도에 따른 색상 및 아이콘
+                let color, icon, effectiveness;
+                if (rate >= 12) {
+                    color = '#4caf50'; // 초록
+                    icon = '🟢';
+                    effectiveness = '매우 효과적';
+                } else if (rate >= 8) {
+                    color = '#ff9800'; // 주황
+                    icon = '🟡';
+                    effectiveness = '효과적';
+                } else {
+                    color = '#f44336'; // 빨강
+                    icon = '🔴';
+                    effectiveness = '개선 필요';
+                }
+                
                 return `
                     <div class="keyword-bar">
-                        <div class="keyword-name">${keyword}</div>
+                        <div class="keyword-name" style="display: flex; align-items: center; gap: 8px;">
+                            ${icon} ${keyword}
+                        </div>
                         <div class="keyword-progress">
-                            <div class="keyword-fill" style="width: ${width}%">
+                            <div class="keyword-fill" style="width: ${width}%; background: ${color};">
                                 ${rate.toFixed(1)}%
                             </div>
                         </div>
-                        <div style="width: 80px; text-align: right; color: #666;">
-                            ${count}건
+                        <div style="width: 120px; text-align: right; color: #666; font-size: 0.9em;">
+                            ${count}건<br>
+                            <span style="color: ${color}; font-weight: 600;">${effectiveness}</span>
                         </div>
                     </div>
                 `;
@@ -736,6 +767,12 @@
             // 선택된 탭 활성화
             event.target.classList.add('active');
             document.getElementById(tabName).classList.add('active');
+            
+            // 탭 컨테이너 상단으로 스크롤
+            document.getElementById('tabsContainer').scrollIntoView({ 
+                behavior: 'smooth',
+                block: 'start'
+            });
         }
         
         // 새 업로드로 돌아가기
@@ -809,16 +846,86 @@
         
         // 생성 결과 표시
         function displayGenerationResults(result) {
-            // 결과 표시 로직 (기존과 동일)
-            const resultsHtml = `
-                <div class="message-card">
-                    <div class="message-header">
-                        <div class="service-name">AI 생성 결과</div>
-                        <div class="click-rate high">GPT-4o 생성</div>
-                    </div>
-                    <div class="message-text">생성된 문구들이 여기에 표시됩니다.</div>
-                </div>
+            let resultsHtml = `
+                <h3 style="margin-bottom: 20px; color: #667eea;">🤖 AI 생성 문구</h3>
             `;
+            
+            // AI 생성 문구들
+            if (result.generated_messages && result.generated_messages.length > 0) {
+                result.generated_messages.forEach((msg, index) => {
+                    resultsHtml += `
+                        <div class="message-card" style="border-left: 4px solid #667eea;">
+                            <div class="message-header">
+                                <div class="service-name">${msg.style}</div>
+                                <div class="click-rate high">예상 ${msg.predicted_rate.toFixed(1)}%</div>
+                            </div>
+                            <div class="message-text">${msg.message}</div>
+                            <div class="message-meta">
+                                💡 <strong>생성 근거:</strong> ${msg.reasoning}
+                                ${msg.confidence ? ` | 신뢰도: ${msg.confidence}%` : ''}
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            
+            // 기존 문구 매칭 결과
+            if (result.relevant_existing_messages && result.relevant_existing_messages.length > 0) {
+                resultsHtml += `
+                    <h3 style="margin: 30px 0 20px; color: #4caf50;">🎯 유사한 기존 고성과 문구</h3>
+                    <div style="background: #f1f8e9; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                        <small>📋 요청사항과 유사한 기존 문구들을 분석하여 실제 성과가 검증된 메시지를 추천합니다.</small>
+                    </div>
+                `;
+                
+                result.relevant_existing_messages.forEach((msg, index) => {
+                    const rateClass = msg.actual_rate >= 15 ? 'high' : 
+                                     msg.actual_rate >= 10 ? 'medium' : 'low';
+                    const rateIcon = msg.actual_rate >= 15 ? '🔥' : 
+                                    msg.actual_rate >= 10 ? '✨' : '📊';
+                    
+                    resultsHtml += `
+                        <div class="message-card" style="border-left: 4px solid #4caf50;">
+                            <div class="message-header">
+                                <div class="service-name">${msg.service}</div>
+                                <div class="click-rate ${rateClass}">
+                                    ${rateIcon} ${msg.actual_rate.toFixed(1)}% (실제)
+                                </div>
+                            </div>
+                            <div class="message-text">${msg.message}</div>
+                            <div class="message-meta">
+                                🔍 <strong>매칭도:</strong> ${msg.match_score}% (${msg.similarity_level || '보통'})
+                                ${msg.match_reasons ? ` | 매칭 이유: ${msg.match_reasons.join(', ')}` : ''}
+                                ${msg.date ? ` | 발송일: ${msg.date}` : ''}
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            
+            // 데이터 인사이트
+            if (result.data_insights) {
+                resultsHtml += `
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 12px; margin-top: 30px;">
+                        <h4 style="margin-bottom: 15px;">📊 분석 데이터 현황</h4>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
+                            <div style="text-align: center;">
+                                <div style="font-size: 1.5em; font-weight: 700; color: #667eea;">${result.data_insights.total_analyzed}</div>
+                                <div style="font-size: 0.9em; color: #666;">분석된 메시지</div>
+                            </div>
+                            <div style="text-align: center;">
+                                <div style="font-size: 1.5em; font-weight: 700; color: #4caf50;">${result.data_insights.high_performance_count}</div>
+                                <div style="font-size: 0.9em; color: #666;">고성과 메시지</div>
+                            </div>
+                            <div style="text-align: center;">
+                                <div style="font-size: 1.5em; font-weight: 700; color: #ff9800;">${result.data_insights.average_click_rate ? result.data_insights.average_click_rate.toFixed(1) + '%' : 'N/A'}</div>
+                                <div style="font-size: 0.9em; color: #666;">전체 평균 클릭률</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
             document.getElementById('generationResults').innerHTML = resultsHtml;
         }
         
