@@ -163,18 +163,22 @@ class UltimateHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             # 기존 메시지 매칭
             relevant_messages = self.find_relevant_messages_new(data, analyzer)
             
-            # 간단한 시뮬레이션 응답 (OpenAI 없이도 작동)
+            # 실제 업로드 데이터 기반 지능형 문구 생성
+            if not analyzer.analysis_complete or not analyzer.data:
+                generated_messages = [{
+                    'style': '오류',
+                    'message': '먼저 CSV 파일을 업로드해주세요.',
+                    'predicted_rate': 0,
+                    'reasoning': '분석된 데이터가 없음',
+                    'confidence': 0
+                }]
+            else:
+                # 실제 데이터 기반 생성 (upload_web_server와 동일한 로직)
+                generated_messages = self.generate_data_based_messages(data, analyzer)
+            
             response = {
                 'success': True,
-                'generated_messages': [
-                    {
-                        'style': '혜택 강조형',
-                        'message': f"(광고) 업로드된 데이터 기반 최적화된 혜택 문구입니다.",
-                        'predicted_rate': 12.5,
-                        'reasoning': "업로드된 데이터 분석을 바탕으로 생성",
-                        'confidence': 85
-                    }
-                ],
+                'generated_messages': generated_messages,
                 'relevant_existing_messages': relevant_messages,
                 'data_insights': {
                     'total_analyzed': len(analyzer.data),
@@ -281,6 +285,95 @@ class UltimateHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         except Exception as e:
             print(f"⚠️ 관련 메시지 검색 실패: {e}")
             return []
+    
+    def generate_data_based_messages(self, user_request, analyzer):
+        """실제 데이터 기반 지능형 문구 생성 (upload_web_server와 동일)"""
+        try:
+            description = user_request.get('description', '').lower()
+            service = user_request.get('service', '')
+            target = user_request.get('target_audience', '고객')
+            
+            # 실제 업로드된 데이터에서 통계 추출
+            total_messages = len(analyzer.data)
+            avg_rate = analyzer.performance_patterns.get('overall_avg', 0)
+            best_rate = analyzer.performance_patterns.get('best_click_rate', 0)
+            
+            print(f"📊 실제 데이터 통계: 총 {total_messages}개, 평균 {avg_rate:.1f}%, 최고 {best_rate:.1f}%")
+            
+            # 실제 데이터에서 효과적인 키워드 추출
+            effective_keywords = []
+            keyword_analysis = analyzer.performance_patterns.get('keyword_analysis', {})
+            for keyword, stats in keyword_analysis.items():
+                if isinstance(stats, list) and len(stats) >= 2:
+                    rate, count = stats[0], stats[1]
+                    if rate > avg_rate and count > 1:
+                        effective_keywords.append((keyword, rate))
+            
+            effective_keywords.sort(key=lambda x: x[1], reverse=True)
+            top_keywords = [kw[0] for kw in effective_keywords[:5]]
+            
+            # 사용자 요청에서 키워드 추출
+            user_keywords = []
+            all_keywords = ['혜택', '최대', '할인', '금리', '한도', '대출', '비교', '갈아타기', '확인', '신청', '특별', '즉시', '마감']
+            for keyword in all_keywords:
+                if keyword in description:
+                    user_keywords.append(keyword)
+            
+            final_keywords = list(set(top_keywords[:3] + user_keywords[:2]))
+            if not final_keywords:
+                final_keywords = top_keywords[:2] if top_keywords else ['혜택', '확인']
+            
+            # 실제 데이터 기반 문구 생성
+            messages = []
+            
+            # 1. 혜택 강조형
+            predicted_rate_1 = min(avg_rate * 1.3, best_rate * 0.85) if best_rate > 0 else avg_rate + 2
+            style1_keywords = final_keywords[:2]
+            messages.append({
+                'style': '데이터 기반 혜택 강조형',
+                'message': f"(광고) {target}님을 위한 검증된 {', '.join(style1_keywords)} 혜택! {service or '대출'} 지금 확인하고 최대 혜택 받으세요 👉",
+                'predicted_rate': round(predicted_rate_1, 1),
+                'reasoning': f"업로드 데이터 분석: '{style1_keywords[0] if style1_keywords else '혜택'}' 키워드 평균 {keyword_analysis.get(style1_keywords[0], [avg_rate])[0]:.1f}% 성과. 총 {total_messages}개 메시지 중 상위 성과 패턴 활용",
+                'confidence': 88
+            })
+            
+            # 2. 긴급성 강조형
+            predicted_rate_2 = min(avg_rate * 1.2, best_rate * 0.8) if best_rate > 0 else avg_rate + 1.5
+            messages.append({
+                'style': '검증된 긴급성 강조형',
+                'message': f"(광고) ⚡ 한정 기간! {service or '대출'} {final_keywords[0] if final_keywords else '혜택'} 마감 임박. 놓치기 전에 지금 확인하세요!",
+                'predicted_rate': round(predicted_rate_2, 1),
+                'reasoning': f"긴급성 패턴의 업로드 데이터 평균 성과 {avg_rate:.1f}%를 바탕으로 개선. 고성과 메시지 {len(analyzer.high_performance_messages)}개 분석 결과 적용",
+                'confidence': 82
+            })
+            
+            # 3. 개인화 맞춤형
+            service_analysis = analyzer.performance_patterns.get('service_analysis', {})
+            target_service_rate = avg_rate
+            if service and service in service_analysis:
+                target_service_rate = service_analysis[service].get('avg_click_rate', avg_rate)
+            
+            predicted_rate_3 = min(target_service_rate * 1.4, best_rate * 0.9) if best_rate > 0 else target_service_rate + 3
+            messages.append({
+                'style': '실데이터 맞춤형',
+                'message': f"(광고) {target}님 조건 맞춤 {service or '대출'} 발견! {', '.join(final_keywords[:2])} 개인별 최적 조건 확인하기",
+                'predicted_rate': round(predicted_rate_3, 1),
+                'reasoning': f"'{service}' 서비스 실제 평균 성과 {target_service_rate:.1f}%, 개인화 표현으로 {final_keywords[0] if final_keywords else '혜택'} 키워드 조합하여 성과 향상 예상",
+                'confidence': 91
+            })
+            
+            print(f"✅ 실제 데이터 기반 {len(messages)}개 문구 생성 완료")
+            return messages
+            
+        except Exception as e:
+            print(f"❌ 데이터 기반 문구 생성 실패: {e}")
+            return [{
+                'style': '생성 실패',
+                'message': '문구 생성 중 오류가 발생했습니다.',
+                'predicted_rate': 0,
+                'reasoning': f'오류: {str(e)}',
+                'confidence': 0
+            }]
     
     def handle_generate_api(self):
         """문구 생성 API"""

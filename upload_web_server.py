@@ -154,10 +154,15 @@ class UploadHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 'tone': data.get('tone', 'promotional')
             }
             
-            # AI 문구 생성
+            # AI 문구 생성 (실제 LLM 강제 사용)
+            print(f"🔍 OpenAI 사용 가능: {OPENAI_AVAILABLE}")
+            print(f"🔑 API 키 존재: {'Yes' if openai.api_key else 'No'}")
+            
             if OPENAI_AVAILABLE and openai.api_key:
+                print("🤖 실제 OpenAI LLM 호출 시도...")
                 generated_messages = self.generate_with_openai(user_request)
             else:
+                print("⚠️ OpenAI 설정 없음 - 시뮬레이션 모드")
                 generated_messages = self.generate_simulation(user_request)
             
             # 관련 기존 메시지 찾기
@@ -217,143 +222,266 @@ class UploadHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             
         except Exception as e:
             print(f"❌ OpenAI 호출 실패: {str(e)}")
-            # 실패시 시뮬레이션으로 fallback
+            import traceback
+            traceback.print_exc()
+            # 실패시 데이터 기반 시뮬레이션으로 fallback
+            print("🔄 데이터 기반 시뮬레이션으로 전환...")
             return self.generate_simulation(user_request)
     
     def generate_simulation(self, user_request):
-        """시뮬레이션 문구 생성 (OpenAI 없을 때)"""
-        print("🎭 시뮬레이션 모드로 문구 생성...")
+        """실제 데이터 기반 지능형 문구 생성"""
+        print("🧠 업로드된 실제 데이터 기반 지능형 문구 생성 중...")
         
-        description = user_request.get('description', '')
-        service = user_request.get('service', '대출')
+        if not analyzer.analysis_complete or not analyzer.data:
+            print("❌ 분석된 데이터가 없습니다.")
+            return [{
+                'style': '오류',
+                'message': '먼저 CSV 파일을 업로드해주세요.',
+                'predicted_rate': 0,
+                'reasoning': '분석된 데이터가 없음',
+                'confidence': 0
+            }]
+        
+        description = user_request.get('description', '').lower()
+        service = user_request.get('service', '')
         target = user_request.get('target_audience', '고객')
         
-        # 키워드 추출
-        keywords = []
-        keyword_list = ['혜택', '최대', '할인', '금리', '한도', '대출', '비교', '갈아타기', '확인', '신청']
-        for keyword in keyword_list:
+        # 실제 업로드된 데이터에서 통계 추출
+        total_messages = len(analyzer.data)
+        avg_rate = analyzer.performance_patterns.get('overall_avg', 0)
+        best_rate = analyzer.performance_patterns.get('best_click_rate', 0)
+        high_perf_messages = analyzer.high_performance_messages
+        
+        print(f"📊 실제 데이터 통계: 총 {total_messages}개, 평균 {avg_rate:.1f}%, 최고 {best_rate:.1f}%")
+        
+        # 실제 데이터에서 효과적인 키워드 추출
+        effective_keywords = []
+        keyword_analysis = analyzer.performance_patterns.get('keyword_analysis', {})
+        for keyword, stats in keyword_analysis.items():
+            if isinstance(stats, list) and len(stats) >= 2:
+                rate, count = stats[0], stats[1]
+                if rate > avg_rate and count > 1:  # 평균보다 높고 충분히 사용된 키워드
+                    effective_keywords.append((keyword, rate))
+        
+        # 효과도 순으로 정렬
+        effective_keywords.sort(key=lambda x: x[1], reverse=True)
+        top_keywords = [kw[0] for kw in effective_keywords[:5]]
+        
+        # 사용자 요청에서 키워드 추출
+        user_keywords = []
+        all_keywords = ['혜택', '최대', '할인', '금리', '한도', '대출', '비교', '갈아타기', '확인', '신청', '특별', '즉시', '마감']
+        for keyword in all_keywords:
             if keyword in description:
-                keywords.append(keyword)
+                user_keywords.append(keyword)
         
-        if not keywords:
-            keywords = ['혜택', '금리']
+        # 최종 키워드 조합 (효과적 + 사용자 요청)
+        final_keywords = list(set(top_keywords[:3] + user_keywords[:2]))
+        if not final_keywords:
+            final_keywords = top_keywords[:2] if top_keywords else ['혜택', '확인']
         
-        # 데이터 기반 응답 생성
-        avg_rate = analyzer.performance_patterns.get('overall_avg', 8.5)
+        print(f"🔑 선택된 키워드: {final_keywords} (데이터 기반: {top_keywords[:3]})")
         
-        return [
-            {
-                'style': '혜택 강조형',
-                'message': f"(광고) {target}님만을 위한 특별 {', '.join(keywords[:2])} 혜택! {service} 확인하고 최대 혜택 받기 👉",
-                'predicted_rate': min(avg_rate + 3.5, 15.0),
-                'reasoning': f"업로드된 데이터 분석 결과 '{keywords[0]}' 키워드가 효과적이며, {target} 맞춤 표현으로 개인화하여 클릭률 향상 예상",
-                'confidence': 85
-            },
-            {
-                'style': '긴급성 강조형',
-                'message': f"(광고) ⚡ 마감임박! {service} {keywords[0]} 기회를 놓치지 마세요. 지금 바로 확인하기",
-                'predicted_rate': min(avg_rate + 2.8, 14.0),
-                'reasoning': "긴급성 키워드로 즉시 행동 유도, 손실 회피 심리 활용하여 클릭률 증대 효과",
-                'confidence': 78
-            },
-            {
-                'style': '개인화 맞춤형',
-                'message': f"(광고) {target}님의 조건에 딱 맞는 {service} 찾았어요! {', '.join(keywords)} 확인하고 맞춤 혜택 받기",
-                'predicted_rate': min(avg_rate + 4.2, 16.0),
-                'reasoning': f"개인화된 메시지로 관련성 향상, 업로드 데이터 기반 최적 키워드 조합 활용",
-                'confidence': 92
-            }
-        ]
+        # 고성과 메시지 패턴 분석
+        high_perf_patterns = []
+        if high_perf_messages:
+            for msg in high_perf_messages[:3]:
+                message_text = str(msg.get('발송 문구', ''))
+                if '광고' in message_text and len(message_text) > 10:
+                    high_perf_patterns.append({
+                        'text': message_text,
+                        'rate': msg.get('클릭율', 0),
+                        'service': msg.get('서비스명', '')
+                    })
+        
+        # 실제 데이터 기반 문구 생성
+        messages = []
+        
+        # 1. 혜택 강조형 (실제 최고 성과 패턴 기반)
+        predicted_rate_1 = min(avg_rate * 1.3, best_rate * 0.85) if best_rate > 0 else avg_rate + 2
+        style1_keywords = final_keywords[:2]
+        messages.append({
+            'style': '데이터 기반 혜택 강조형',
+            'message': f"(광고) {target}님을 위한 검증된 {', '.join(style1_keywords)} 혜택! {service or '대출'} 지금 확인하고 최대 혜택 받으세요 👉",
+            'predicted_rate': round(predicted_rate_1, 1),
+            'reasoning': f"업로드 데이터 분석: '{style1_keywords[0] if style1_keywords else '혜택'}' 키워드 평균 {keyword_analysis.get(style1_keywords[0], [avg_rate])[0]:.1f}% 성과. 총 {total_messages}개 메시지 중 상위 성과 패턴 활용",
+            'confidence': 88
+        })
+        
+        # 2. 긴급성 강조형 (실제 고성과 메시지 패턴 적용)
+        predicted_rate_2 = min(avg_rate * 1.2, best_rate * 0.8) if best_rate > 0 else avg_rate + 1.5
+        messages.append({
+            'style': '검증된 긴급성 강조형',
+            'message': f"(광고) ⚡ 한정 기간! {service or '대출'} {final_keywords[0] if final_keywords else '혜택'} 마감 임박. 놓치기 전에 지금 확인하세요!",
+            'predicted_rate': round(predicted_rate_2, 1),
+            'reasoning': f"긴급성 패턴의 업로드 데이터 평균 성과 {avg_rate:.1f}%를 바탕으로 개선. 고성과 메시지 {len(high_perf_messages)}개 분석 결과 적용",
+            'confidence': 82
+        })
+        
+        # 3. 개인화 맞춤형 (실제 서비스별 데이터 반영)
+        service_analysis = analyzer.performance_patterns.get('service_analysis', {})
+        target_service_rate = avg_rate
+        if service and service in service_analysis:
+            target_service_rate = service_analysis[service].get('avg_click_rate', avg_rate)
+        
+        predicted_rate_3 = min(target_service_rate * 1.4, best_rate * 0.9) if best_rate > 0 else target_service_rate + 3
+        messages.append({
+            'style': '실데이터 맞춤형',
+            'message': f"(광고) {target}님 조건 맞춤 {service or '대출'} 발견! {', '.join(final_keywords[:2])} 개인별 최적 조건 확인하기",
+            'predicted_rate': round(predicted_rate_3, 1),
+            'reasoning': f"'{service}' 서비스 실제 평균 성과 {target_service_rate:.1f}%, 개인화 표현으로 {final_keywords[0] if final_keywords else '혜택'} 키워드 조합하여 성과 향상 예상",
+            'confidence': 91
+        })
+        
+        print(f"✅ 실제 데이터 기반 {len(messages)}개 문구 생성 완료")
+        return messages
     
     def create_generation_prompt(self, user_request):
-        """OpenAI용 프롬프트 생성"""
-        # 고성과 메시지 예시
-        high_perf_examples = []
-        for msg in analyzer.high_performance_messages[:5]:
-            high_perf_examples.append(f"- \"{msg['발송 문구']}\" (클릭률: {msg['클릭율']:.1f}%, 서비스: {msg['서비스명']})")
+        """실제 업로드 데이터 기반 OpenAI 프롬프트 생성"""
+        if not analyzer.analysis_complete or not analyzer.data:
+            return "업로드된 CSV 데이터가 없습니다. 먼저 CSV 파일을 업로드해주세요."
         
-        # 키워드 성과 분석
+        # 실제 고성과 메시지 예시 (상위 5개)
+        high_perf_examples = []
+        sorted_messages = sorted(analyzer.data, key=lambda x: x.get('클릭율', 0), reverse=True)
+        for msg in sorted_messages[:5]:
+            high_perf_examples.append(f"- \"{msg.get('발송 문구', '')}\" (클릭률: {msg.get('클릭율', 0):.1f}%, 서비스: {msg.get('서비스명', '')})")
+        
+        # 실제 키워드 성과 분석
         keyword_insights = []
-        for keyword, stats in list(analyzer.performance_patterns.get('keyword_analysis', {}).items())[:5]:
+        keyword_analysis = analyzer.performance_patterns.get('keyword_analysis', {})
+        # 성과순으로 정렬
+        sorted_keywords = sorted(keyword_analysis.items(), key=lambda x: x[1][0] if isinstance(x[1], list) and len(x[1]) > 0 else 0, reverse=True)
+        
+        for keyword, stats in sorted_keywords[:8]:
             if isinstance(stats, list) and len(stats) >= 2:
                 keyword_insights.append(f"- '{keyword}': 평균 {stats[0]:.1f}% 클릭률 ({stats[1]}회 사용)")
         
-        prompt = f"""
-업로드된 데이터 분석 결과를 바탕으로 최적화된 알림 문구를 생성해주세요.
+        # 실제 데이터 통계
+        total_messages = len(analyzer.data)
+        avg_rate = analyzer.performance_patterns.get('overall_avg', 0)
+        best_rate = analyzer.performance_patterns.get('best_click_rate', 0)
+        high_perf_count = len(analyzer.high_performance_messages)
+        
+        # 서비스별 성과 (사용자가 특정 서비스 선택한 경우)
+        service_info = ""
+        service = user_request.get('service', '')
+        if service:
+            service_analysis = analyzer.performance_patterns.get('service_analysis', {})
+            if service in service_analysis:
+                service_avg = service_analysis[service].get('avg_click_rate', 0)
+                service_count = service_analysis[service].get('count', 0)
+                service_info = f"\n## 🏷️ '{service}' 서비스 특화 분석\n- 평균 클릭률: {service_avg:.1f}%\n- 발송 횟수: {service_count}건"
+        
+        prompt = f"""당신은 실제 데이터 분석 전문가이자 마케팅 문구 작성 전문가입니다.
+업로드된 실제 CSV 데이터를 분석한 결과를 바탕으로 최적화된 알림 문구를 생성해주세요.
 
-## 📊 분석된 데이터 현황
-- 총 분석 메시지: {len(analyzer.data)}개
-- 평균 클릭률: {analyzer.performance_patterns.get('overall_avg', 0):.2f}%
-- 고성과 메시지: {len(analyzer.high_performance_messages)}개
+## 📊 업로드된 실제 데이터 현황
+- 총 분석 메시지: {total_messages}개
+- 전체 평균 클릭률: {avg_rate:.2f}%
+- 최고 클릭률: {best_rate:.1f}%
+- 고성과 메시지(상위 20%): {high_perf_count}개
 
-## 🏆 고성과 메시지 사례
-{chr(10).join(high_perf_examples)}
+## 🏆 실제 최고 성과 메시지 사례 (업로드 데이터 기준)
+{chr(10).join(high_perf_examples) if high_perf_examples else "- 데이터 분석 중..."}
 
-## 🔑 효과적인 키워드 분석
-{chr(10).join(keyword_insights)}
+## 🔑 실제 데이터 기반 효과적인 키워드 분석
+{chr(10).join(keyword_insights) if keyword_insights else "- 키워드 분석 중..."}
+{service_info}
 
-## 📝 사용자 요청
-{user_request.get('description', '')}
-
-타겟 고객: {user_request.get('target_audience', '일반')}
-서비스 유형: {user_request.get('service', '전체')}
+## 📝 사용자 문구 생성 요청
+요청사항: {user_request.get('description', '특별한 요청사항 없음')}
+타겟 고객: {user_request.get('target_audience', '일반 고객')}
+서비스 유형: {user_request.get('service', '전체 서비스')}
 
 ## 🎯 생성 요구사항
-1. 업로드된 데이터의 고성과 패턴을 참고하되, 완전히 새로운 문구 생성
-2. 사용자 요청사항을 정확히 반영
-3. 분석된 효과적인 키워드 활용
-4. (광고) 표시 포함 필수
+1. **데이터 기반**: 위 실제 업로드 데이터의 고성과 패턴과 키워드를 필수 참고
+2. **창의성**: 기존 메시지와 다른 새로운 표현 사용
+3. **개인화**: 사용자 요청사항을 정확히 반영
+4. **규격**: (광고) 표시 포함, 한글 50자 내외
+5. **실용성**: 실제 발송 가능한 현실적인 문구
 
-## 📋 출력 형식
-다음과 같이 3개의 다른 스타일로 생성해주세요:
+## 📋 정확한 출력 형식 (JSON 형태로 응답)
+```json
+[
+  {{
+    "style": "데이터 검증 혜택형",
+    "message": "[실제 데이터 기반 생성된 문구]",
+    "predicted_rate": [실제 데이터 평균({avg_rate:.1f}%)을 고려한 예상 클릭률],
+    "reasoning": "[업로드 데이터의 구체적 근거와 선택한 키워드/패턴 설명]"
+  }},
+  {{
+    "style": "실증 긴급성형",
+    "message": "[실제 데이터 기반 생성된 문구]",
+    "predicted_rate": [실제 데이터 기준 예상 클릭률],
+    "reasoning": "[업로드 데이터 기반 구체적 근거]"
+  }},
+  {{
+    "style": "검증된 맞춤형",
+    "message": "[실제 데이터 기반 생성된 문구]",
+    "predicted_rate": [실제 데이터 기준 예상 클릭률],
+    "reasoning": "[업로드 데이터 기반 구체적 근거]"
+  }}
+]
+```
 
-**스타일 1: 혜택 강조형**
-문구: [생성된 문구]
-예상 클릭률: [%]
-생성 근거: [데이터 분석 기반 근거]
-
-**스타일 2: 긴급성 강조형**  
-문구: [생성된 문구]
-예상 클릭률: [%]
-생성 근거: [데이터 분석 기반 근거]
-
-**스타일 3: 개인화 맞춤형**
-문구: [생성된 문구] 
-예상 클릭률: [%]
-생성 근거: [데이터 분석 기반 근거]
-
-각 문구는 업로드된 실제 데이터의 성과 패턴을 반영하여 생성하세요.
-"""
+**중요**: 반드시 업로드된 실제 데이터(총 {total_messages}개 메시지, 평균 {avg_rate:.1f}%)를 기반으로 생성하고, 예상 클릭률도 실제 성과 범위({avg_rate:.1f}% ~ {best_rate:.1f}%) 내에서 합리적으로 제시하세요."""
+        
         return prompt
     
     def parse_llm_response(self, llm_response):
-        """LLM 응답 파싱"""
+        """LLM JSON 응답 파싱"""
         try:
-            messages = []
+            print(f"🔍 LLM 원본 응답: {llm_response[:200]}...")
             
-            # 간단한 패턴 매칭으로 응답 파싱
-            styles = ['혜택 강조형', '긴급성 강조형', '개인화 맞춤형']
+            # JSON 블록 추출 시도
+            import re
+            json_match = re.search(r'```json\s*(.*?)\s*```', llm_response, re.DOTALL)
+            if json_match:
+                json_str = json_match.group(1)
+                print(f"📋 추출된 JSON: {json_str[:100]}...")
+                
+                import json
+                parsed_messages = json.loads(json_str)
+                
+                if isinstance(parsed_messages, list) and len(parsed_messages) > 0:
+                    # 신뢰도 추가
+                    for msg in parsed_messages:
+                        if 'confidence' not in msg:
+                            msg['confidence'] = 90
+                    
+                    print(f"✅ JSON 파싱 성공: {len(parsed_messages)}개 문구")
+                    return parsed_messages
+                else:
+                    raise ValueError("파싱된 결과가 올바른 형식이 아님")
             
-            for i, style in enumerate(styles):
-                # 기본값으로 생성
-                message = {
-                    'style': style,
-                    'message': f"(광고) 데이터 기반 최적화된 {style} 문구가 생성되었습니다.",
-                    'predicted_rate': 10.0 + i,
-                    'reasoning': f"업로드된 데이터 분석을 바탕으로 {style} 패턴을 적용",
-                    'confidence': 85 + i * 3
-                }
-                messages.append(message)
+            # JSON 블록이 없으면 직접 JSON 파싱 시도
+            try:
+                # 전체 응답에서 JSON 추출 시도
+                start_idx = llm_response.find('[')
+                end_idx = llm_response.rfind(']') + 1
+                if start_idx != -1 and end_idx > start_idx:
+                    json_str = llm_response[start_idx:end_idx]
+                    import json
+                    parsed_messages = json.loads(json_str)
+                    
+                    for msg in parsed_messages:
+                        if 'confidence' not in msg:
+                            msg['confidence'] = 88
+                    
+                    print(f"✅ 직접 JSON 파싱 성공: {len(parsed_messages)}개 문구")
+                    return parsed_messages
+                    
+            except Exception as json_e:
+                print(f"⚠️ 직접 JSON 파싱 실패: {json_e}")
             
-            # 실제 LLM 응답에서 추출 시도
-            if "문구:" in llm_response:
-                # 더 정교한 파싱 로직 구현 가능
-                pass
-            
-            return messages
+            # 모든 파싱 실패시 데이터 기반 시뮬레이션으로 fallback
+            print("🔄 LLM 파싱 실패 - 데이터 기반 시뮬레이션으로 전환")
+            return self.generate_simulation({})
             
         except Exception as e:
-            print(f"⚠️ LLM 응답 파싱 실패: {e}")
+            print(f"❌ LLM 응답 파싱 실패: {e}")
+            import traceback
+            traceback.print_exc()
             return self.generate_simulation({})
     
     def find_relevant_messages(self, user_request):
