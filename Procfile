@@ -1,1 +1,1 @@
-web: python3 start.py
+web: python3 -c "import upload_web_server; upload_web_server.run_upload_server()"
