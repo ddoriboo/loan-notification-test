@@ -21,7 +21,7 @@ class UltimateHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     
     def do_GET(self):
         if self.path == '/':
-            self.path = '/ultimate_ai_message_generator.html'
+            self.path = '/ultimate_ai_message_generator_v2.html'
         return super().do_GET()
     
     def do_POST(self):
@@ -31,6 +31,8 @@ class UltimateHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.handle_timing_api()
         elif self.path == '/api/compare':
             self.handle_compare_api()
+        elif self.path == '/api/dashboard':
+            self.handle_dashboard_api()
         else:
             self.send_error(404)
     
@@ -208,6 +210,33 @@ class UltimateHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             'insights': insights,
             'recommendation': '기존 고성과 패턴을 베이스로 LLM의 창의성을 결합하는 것이 최적'
         }
+    
+    def handle_dashboard_api(self):
+        """대시보드 데이터 API"""
+        try:
+            # 생성기 초기화 확인
+            if not hasattr(self.server, 'llm_generator'):
+                print("🚀 Ultimate AI 생성기 초기화 중...")
+                self.server.llm_generator = RealLLMGenerator(
+                    "202507_.csv"
+                )
+                print("✅ 초기화 완료!")
+            
+            generator = self.server.llm_generator
+            
+            # 대시보드 데이터 가져오기
+            dashboard_data = generator.get_dashboard_data()
+            
+            # 성공 응답
+            response = {
+                'success': True,
+                'data': dashboard_data
+            }
+            
+            self.send_json_response(response)
+            
+        except Exception as e:
+            self.send_error_response(str(e))
     
     def send_json_response(self, data):
         """JSON 응답 전송"""

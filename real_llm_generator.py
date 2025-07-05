@@ -13,6 +13,7 @@ from datetime import datetime, timedelta
 import statistics
 from enhanced_timing_analyzer import EnhancedTimingAnalyzer
 import re
+import os
 
 # OpenAI API (실제 사용 시 설치 필요)
 try:
@@ -20,7 +21,7 @@ try:
     OPENAI_AVAILABLE = True
 except ImportError:
     OPENAI_AVAILABLE = False
-    print("⚠️ OpenAI 라이브러리가 설치되지 않았습니다. 시뮬레이션 모드로 실행됩니다.")
+    print("❌ OpenAI 라이브러리가 설치되지 않았습니다. pip install openai 명령으로 설치하세요.")
 
 class RealLLMGenerator:
     def __init__(self, csv_file, openai_api_key=None):
@@ -30,14 +31,19 @@ class RealLLMGenerator:
         self.high_performance_messages = []
         self.performance_patterns = {}
         
+        # OpenAI API 키 확인 (환경변수 우선)
+        api_key = openai_api_key or os.environ.get('OPENAI_API_KEY')
+        
+        if not OPENAI_AVAILABLE:
+            raise ImportError("OpenAI 라이브러리가 설치되지 않았습니다. pip install openai 명령으로 설치하세요.")
+        
+        if not api_key:
+            raise ValueError("OPENAI_API_KEY 환경변수가 설정되지 않았습니다. Railway 환경변수에 OPENAI_API_KEY를 추가하세요.")
+        
         # OpenAI 설정
-        if openai_api_key and OPENAI_AVAILABLE:
-            openai.api_key = openai_api_key
-            self.llm_available = True
-            print("✅ OpenAI API 연결 완료")
-        else:
-            self.llm_available = False
-            print("🔄 시뮬레이션 모드로 실행합니다")
+        openai.api_key = api_key
+        self.llm_available = True
+        print("✅ OpenAI API 연결 완료")
         
         self.load_and_analyze_data()
         
@@ -203,11 +209,10 @@ class RealLLMGenerator:
     
     def call_llm_api(self, prompt):
         """실제 LLM API 호출"""
-        if not self.llm_available:
-            return self.simulate_llm_response(prompt)
-        
         try:
-            response = openai.ChatCompletion.create(
+            # OpenAI API v1.0+ 형식
+            client = openai.OpenAI(api_key=openai.api_key)
+            response = client.chat.completions.create(
                 model="gpt-4",
                 messages=[
                     {"role": "system", "content": "당신은 데이터 분석 기반의 전문 마케팅 문구 작성자입니다."},
@@ -219,9 +224,24 @@ class RealLLMGenerator:
             
             return response.choices[0].message.content
             
+        except AttributeError:
+            # 구버전 OpenAI API 형식
+            try:
+                response = openai.ChatCompletion.create(
+                    model="gpt-4",
+                    messages=[
+                        {"role": "system", "content": "당신은 데이터 분석 기반의 전문 마케팅 문구 작성자입니다."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    max_tokens=2000,
+                    temperature=0.7
+                )
+                return response.choices[0].message.content
+            except Exception as e:
+                raise Exception(f"OpenAI API 호출 실패: {str(e)}")
+                
         except Exception as e:
-            print(f"❌ LLM API 오류: {e}")
-            return self.simulate_llm_response(prompt)
+            raise Exception(f"OpenAI API 호출 실패: {str(e)}")
     
     def simulate_llm_response(self, prompt):
         """LLM 응답 시뮬레이션 (API 없을 때)"""
@@ -402,6 +422,61 @@ class RealLLMGenerator:
                 'advantage': f"{existing_avg - llm_avg:.1f}%p", 
                 'reason': '실제 검증된 데이터의 신뢰성이 높음'
             }
+    
+    def get_dashboard_data(self):
+        """대시보드용 분석 데이터 반환"""
+        # 서비스별 분석
+        service_analysis = {}
+        for msg_data in self.data:
+            service = msg_data.get('서비스명', '기타')
+            if service not in service_analysis:
+                service_analysis[service] = {
+                    'count': 0,
+                    'total_clicks': 0,
+                    'messages': []
+                }
+            service_analysis[service]['count'] += 1
+            service_analysis[service]['total_clicks'] += float(msg_data.get('클릭율', 0))
+            service_analysis[service]['messages'].append({
+                '문구': msg_data.get('발송 문구', ''),
+                '클릭률': float(msg_data.get('클릭율', 0)),
+                '날짜': msg_data.get('발송 날짜', '')
+            })
+        
+        # 서비스별 평균 클릭률 계산
+        for service in service_analysis:
+            count = service_analysis[service]['count']
+            service_analysis[service]['avg_click_rate'] = (
+                service_analysis[service]['total_clicks'] / count if count > 0 else 0
+            )
+            # 상위 5개 메시지만 유지
+            service_analysis[service]['messages'].sort(key=lambda x: x['클릭률'], reverse=True)
+            service_analysis[service]['messages'] = service_analysis[service]['messages'][:5]
+        
+        # 키워드 분석
+        keyword_stats = self.performance_patterns.get('keyword_performance', {})
+        
+        # 시간대별 분석
+        time_analysis = {}
+        weekday_names = ['월', '화', '수', '목', '금', '토', '일']
+        for i, day_data in enumerate(self.performance_patterns.get('weekday_performance', [])):
+            time_analysis[weekday_names[i]] = {
+                'avg_click_rate': day_data[0],
+                'count': day_data[1]
+            }
+        
+        return {
+            'summary': {
+                'total_messages': len(self.data),
+                'avg_click_rate': self.performance_patterns.get('overall_avg', 0),
+                'best_click_rate': self.performance_patterns.get('best_click_rate', 0),
+                'high_performance_count': len(self.high_performance_messages)
+            },
+            'service_analysis': service_analysis,
+            'keyword_analysis': dict(list(keyword_stats.items())[:10]),
+            'time_analysis': time_analysis,
+            'high_performance_messages': self.high_performance_messages[:10]
+        }
 
 def demo_real_llm_generator():
     """데모 실행"""
