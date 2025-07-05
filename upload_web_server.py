@@ -465,6 +465,12 @@ def run_upload_server(port=None):
             httpd.server_close()
 
 if __name__ == "__main__":
+    # 강제 실행 표시
+    print("🚨 UPLOAD_WEB_SERVER.PY 강제 실행! 🚨")
+    print("=" * 50)
+    print("📍 이 메시지가 보이면 올바른 서버가 실행된 것입니다!")
+    print("=" * 50)
+    
     # 환경 확인
     print("🔍 서버 환경 확인")
     print("=" * 40)

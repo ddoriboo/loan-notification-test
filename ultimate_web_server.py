@@ -21,8 +21,42 @@ class UltimateHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     
     def do_GET(self):
         if self.path == '/':
-            self.path = '/ultimate_interface.html'
-        return super().do_GET()
+            self.serve_main_page()
+        else:
+            return super().do_GET()
+    
+    def serve_main_page(self):
+        """메인 페이지 직접 서빙"""
+        try:
+            # upload_web_interface.html을 서빙
+            with open('upload_web_interface.html', 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/html; charset=utf-8')
+            self.send_header('Content-Length', str(len(content.encode('utf-8'))))
+            self.end_headers()
+            
+            self.wfile.write(content.encode('utf-8'))
+            
+        except FileNotFoundError:
+            try:
+                # fallback: ultimate_ai_message_generator_v2.html
+                with open('ultimate_ai_message_generator_v2.html', 'r', encoding='utf-8') as f:
+                    content = f.read()
+                
+                self.send_response(200)
+                self.send_header('Content-Type', 'text/html; charset=utf-8')
+                self.send_header('Content-Length', str(len(content.encode('utf-8'))))
+                self.end_headers()
+                
+                self.wfile.write(content.encode('utf-8'))
+                
+            except FileNotFoundError:
+                self.send_error(404, "No HTML interface found")
+        except Exception as e:
+            print(f"❌ 메인 페이지 서빙 실패: {e}")
+            self.send_error(500, "Internal server error")
     
     def do_POST(self):
         # 기존 API들 (하위 호환성)
