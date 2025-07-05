@@ -160,6 +160,9 @@ class UltimateHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             
             print(f"📝 생성 요청: {data}")
             
+            # 기존 메시지 매칭
+            relevant_messages = self.find_relevant_messages_new(data, analyzer)
+            
             # 간단한 시뮬레이션 응답 (OpenAI 없이도 작동)
             response = {
                 'success': True,
@@ -168,12 +171,15 @@ class UltimateHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                         'style': '혜택 강조형',
                         'message': f"(광고) 업로드된 데이터 기반 최적화된 혜택 문구입니다.",
                         'predicted_rate': 12.5,
-                        'reasoning': "업로드된 데이터 분석을 바탕으로 생성"
+                        'reasoning': "업로드된 데이터 분석을 바탕으로 생성",
+                        'confidence': 85
                     }
                 ],
+                'relevant_existing_messages': relevant_messages,
                 'data_insights': {
                     'total_analyzed': len(analyzer.data),
-                    'high_performance_count': len(analyzer.high_performance_messages)
+                    'high_performance_count': len(analyzer.high_performance_messages),
+                    'average_click_rate': analyzer.performance_patterns.get('overall_avg', 0)
                 }
             }
             
@@ -190,6 +196,91 @@ class UltimateHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 'error': f"문구 생성 실패: {str(e)}"
             }
             self.send_json_response(error_response, status=500)
+    
+    def find_relevant_messages_new(self, user_request, analyzer):
+        """관련 기존 메시지 찾기 (고도화된 매칭)"""
+        try:
+            service = user_request.get('service', '')
+            description = user_request.get('description', '').lower()
+            target_audience = user_request.get('target_audience', '').lower()
+            
+            relevant = []
+            
+            # 키워드 추출 및 가중치 설정
+            high_value_keywords = ['혜택', '할인', '최대', '특별', '한정', '무료', '즉시', '긴급', '마감']
+            service_keywords = ['대출', '금리', '한도', '갈아타기', '비교', '승인', '신청', '확인']
+            target_keywords = ['직장인', '프리랜서', '개인사업자', '주부', '신용', '담보']
+            
+            for msg in analyzer.data:  # 전체 데이터에서 검색
+                score = 0
+                match_reasons = []
+                
+                msg_text = str(msg.get('발송 문구', '')).lower()
+                msg_service = str(msg.get('서비스명', '')).lower()
+                
+                # 1. 서비스 매칭 (높은 가중치)
+                if service and service.lower() in msg_service:
+                    score += 5
+                    match_reasons.append(f'서비스 일치 ({service})')
+                
+                # 2. 고가치 키워드 매칭
+                matched_high_keywords = []
+                for keyword in high_value_keywords:
+                    if keyword in description and keyword in msg_text:
+                        score += 3
+                        matched_high_keywords.append(keyword)
+                
+                if matched_high_keywords:
+                    match_reasons.append(f'고가치 키워드: {", ".join(matched_high_keywords)}')
+                
+                # 3. 서비스 키워드 매칭
+                matched_service_keywords = []
+                for keyword in service_keywords:
+                    if keyword in description and keyword in msg_text:
+                        score += 2
+                        matched_service_keywords.append(keyword)
+                
+                if matched_service_keywords:
+                    match_reasons.append(f'서비스 키워드: {", ".join(matched_service_keywords)}')
+                
+                # 4. 타겟 고객 매칭
+                matched_target_keywords = []
+                for keyword in target_keywords:
+                    if keyword in target_audience and keyword in msg_text:
+                        score += 2
+                        matched_target_keywords.append(keyword)
+                
+                if matched_target_keywords:
+                    match_reasons.append(f'타겟 일치: {", ".join(matched_target_keywords)}')
+                
+                # 5. 클릭률 보너스 (고성과 메시지에 가산점)
+                click_rate = msg.get('클릭율', 0)
+                if click_rate >= 15:
+                    score += 3
+                    match_reasons.append(f'고성과 ({click_rate:.1f}%)')
+                elif click_rate >= 10:
+                    score += 2
+                    match_reasons.append(f'우수성과 ({click_rate:.1f}%)')
+                
+                # 점수가 있는 메시지만 포함
+                if score > 0:
+                    relevant.append({
+                        'message': msg.get('발송 문구', ''),
+                        'actual_rate': click_rate,
+                        'service': msg.get('서비스명', ''),
+                        'match_score': min(score * 5, 100),  # 0-100 스케일
+                        'date': str(msg.get('발송일', ''))[:10] if msg.get('발송일') else '',
+                        'match_reasons': match_reasons,
+                        'similarity_level': '매우 높음' if score >= 10 else '높음' if score >= 6 else '보통'
+                    })
+            
+            # 점수순 정렬 후 상위 5개 반환
+            relevant.sort(key=lambda x: (x['match_score'], x['actual_rate']), reverse=True)
+            return relevant[:5]
+            
+        except Exception as e:
+            print(f"⚠️ 관련 메시지 검색 실패: {e}")
+            return []
     
     def handle_generate_api(self):
         """문구 생성 API"""
