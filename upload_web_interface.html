@@ -910,23 +910,18 @@
                 console.log(`탭 콘텐츠 활성화: ${tabName}`);
             }
             
-            // summary 탭이 아닐 때만 summary 내용 숨기기 (전체분석 요약은 항상 표시)
-            const summaryTab = document.getElementById('summary');
+            // summary 탭이 아닐 때 토글 버튼 추가
             if (tabName !== 'summary') {
-                console.log(`다른 탭으로 전환: ${tabName}, summary 탭 숨김 처리`);
-                // summary 탭 내용을 다른 탭 상단에 표시
-                showSummaryInOtherTabs(tabName);
+                console.log(`다른 탭으로 전환: ${tabName}, 토글 버튼 추가`);
+                // 토글 버튼 추가 (자동 표시 안함)
+                addSummaryToggleButton(tabName);
             } else {
                 console.log('summary 탭 활성화, 요일별 차트 업데이트');
                 // summary 탭 활성화시 요일별 차트 업데이트
                 updateWeekdayChart();
                 
-                // 다른 탭의 오버레이 제거
-                const existingSummary = document.querySelector('.tab-summary-overlay');
-                if (existingSummary) {
-                    existingSummary.remove();
-                    console.log('다른 탭 오버레이 제거됨');
-                }
+                // 다른 탭의 토글 버튼과 오버레이 제거
+                removeSummaryToggleElements();
             }
             
             // insights 탭 선택시 생성 버튼 표시
@@ -993,70 +988,169 @@
             weekdayChartElement.innerHTML = weekdayHtml;
         }
         
-        // 다른 탭에서 요약 정보 표시 (핵심 지표만)
-        function showSummaryInOtherTabs(tabName) {
-            if (!analysisData) return;
-            
-            console.log(`showSummaryInOtherTabs 호출됨 - 탭: ${tabName} (4개 지표만 표시)`);
-            
-            // 기존 요약 정보 제거
-            const existingSummary = document.querySelector('.tab-summary-overlay');
-            if (existingSummary) {
-                existingSummary.remove();
-                console.log('기존 요약 정보 제거됨');
+        // 토글 버튼 추가 (다른 탭에서)
+        function addSummaryToggleButton(tabName) {
+            if (!analysisData || !analysisData.success) {
+                console.log('분석 데이터 없음, 토글 버튼 추가 생략');
+                return;
             }
             
-            // 핵심 4개 지표만 포함한 요약 정보 생성 (요일별 분석 제외)
-            const summaryOverlay = document.createElement('div');
-            summaryOverlay.className = 'tab-summary-overlay';
-            summaryOverlay.style.cssText = `
-                background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-                padding: 20px;
-                margin-bottom: 25px;
-                border-radius: 12px;
-                border-left: 4px solid #667eea;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            `;
+            // 기존 토글 요소들 제거
+            removeSummaryToggleElements();
             
-            const summary = analysisData.summary;
-            summaryOverlay.innerHTML = `
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <h3 style="margin: 0; color: #333;">📊 핵심 지표 요약</h3>
-                    <button onclick="showTab('summary')" 
-                            style="background: #667eea; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.9em;">
-                        전체 분석 보기
-                    </button>
-                </div>
-                <div style="color: #666; font-size: 0.9em; margin-bottom: 15px;">
-                    📋 4개 핵심 지표만 표시됩니다. 요일별 성과분석 등 상세 내용은 '전체 분석 보기'를 클릭하세요.
-                </div>
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
-                    <div style="text-align: center;">
-                        <div style="font-size: 1.8em; font-weight: bold; color: #667eea;">${summary.total_messages}</div>
-                        <div style="color: #666; font-size: 0.9em;">전체 메시지</div>
-                    </div>
-                    <div style="text-align: center;">
-                        <div style="font-size: 1.8em; font-weight: bold; color: #28a745;">${summary.avg_click_rate.toFixed(1)}%</div>
-                        <div style="color: #666; font-size: 0.9em;">평균 클릭률</div>
-                    </div>
-                    <div style="text-align: center;">
-                        <div style="font-size: 1.8em; font-weight: bold; color: #ffc107;">${summary.best_click_rate.toFixed(1)}%</div>
-                        <div style="color: #666; font-size: 0.9em;">최고 클릭률</div>
-                    </div>
-                    <div style="text-align: center;">
-                        <div style="font-size: 1.8em; font-weight: bold; color: #dc3545;">${summary.high_performance_count}</div>
-                        <div style="color: #666; font-size: 0.9em;">고성과 메시지</div>
-                    </div>
-                </div>
+            // 토글 버튼 생성
+            const toggleButton = document.createElement('button');
+            toggleButton.className = 'summary-toggle-btn';
+            toggleButton.style.cssText = `
+                background: #667eea;
+                color: white;
+                border: none;
+                padding: 12px 20px;
+                border-radius: 8px;
+                cursor: pointer;
+                font-size: 0.95em;
+                margin-bottom: 20px;
+                transition: all 0.3s ease;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.1);
             `;
+            toggleButton.innerHTML = '📊 핵심 지표 보기';
+            toggleButton.onclick = () => toggleSummaryDisplay(tabName);
+            
+            // 버튼 호버 효과
+            toggleButton.onmouseover = () => {
+                toggleButton.style.background = '#5a4fcf';
+                toggleButton.style.transform = 'translateY(-2px)';
+            };
+            toggleButton.onmouseout = () => {
+                toggleButton.style.background = '#667eea';
+                toggleButton.style.transform = 'translateY(0)';
+            };
             
             // 해당 탭 컨텐츠 상단에 추가
             const tabContent = document.getElementById(tabName);
             const firstChild = tabContent.querySelector('h2');
             if (firstChild) {
-                firstChild.insertAdjacentElement('afterend', summaryOverlay);
+                firstChild.insertAdjacentElement('afterend', toggleButton);
+                console.log(`토글 버튼 추가됨: ${tabName}`);
             }
         }
+        
+        // 토글 요소들 제거
+        function removeSummaryToggleElements() {
+            // 토글 버튼 제거
+            const existingButton = document.querySelector('.summary-toggle-btn');
+            if (existingButton) {
+                existingButton.remove();
+                console.log('토글 버튼 제거됨');
+            }
+            
+            // 오버레이 제거
+            const existingOverlay = document.querySelector('.tab-summary-overlay');
+            if (existingOverlay) {
+                existingOverlay.remove();
+                console.log('요약 오버레이 제거됨');
+            }
+        }
+        
+        // 요약 정보 토글 표시
+        function toggleSummaryDisplay(tabName) {
+            const existingOverlay = document.querySelector('.tab-summary-overlay');
+            const toggleButton = document.querySelector('.summary-toggle-btn');
+            
+            if (existingOverlay) {
+                // 이미 표시중이면 숨기기
+                existingOverlay.remove();
+                if (toggleButton) {
+                    toggleButton.innerHTML = '📊 핵심 지표 보기';
+                    toggleButton.style.background = '#667eea';
+                }
+                console.log('요약 정보 숨김');
+            } else {
+                // 숨겨져 있으면 표시하기
+                showSummaryOverlay(tabName);
+                if (toggleButton) {
+                    toggleButton.innerHTML = '❌ 핵심 지표 숨기기';
+                    toggleButton.style.background = '#28a745';
+                }
+                console.log('요약 정보 표시');
+            }
+        }
+        
+        // 요약 오버레이 표시 (안전한 버전)
+        function showSummaryOverlay(tabName) {
+            if (!analysisData || !analysisData.success || !analysisData.summary) {
+                console.log('분석 데이터 부족, 오버레이 표시 불가');
+                return;
+            }
+            
+            try {
+                const summaryOverlay = document.createElement('div');
+                summaryOverlay.className = 'tab-summary-overlay';
+                summaryOverlay.style.cssText = `
+                    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+                    padding: 20px;
+                    margin-bottom: 25px;
+                    border-radius: 12px;
+                    border-left: 4px solid #667eea;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+                    animation: slideIn 0.3s ease;
+                `;
+                
+                const summary = analysisData.summary;
+                summaryOverlay.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <h3 style="margin: 0; color: #333;">📊 핵심 지표 요약</h3>
+                        <button onclick="showTab('summary')" 
+                                style="background: #28a745; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.9em;">
+                            전체 분석 보기
+                        </button>
+                    </div>
+                    <div style="color: #666; font-size: 0.9em; margin-bottom: 15px;">
+                        📋 핵심 지표만 표시 중입니다. 요일별 성과분석 등은 '전체 분석 보기'에서 확인하세요.
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                        <div style="text-align: center;">
+                            <div style="font-size: 1.8em; font-weight: bold; color: #667eea;">${summary.total_messages || 0}</div>
+                            <div style="color: #666; font-size: 0.9em;">전체 메시지</div>
+                        </div>
+                        <div style="text-align: center;">
+                            <div style="font-size: 1.8em; font-weight: bold; color: #28a745;">${(summary.avg_click_rate || 0).toFixed(1)}%</div>
+                            <div style="color: #666; font-size: 0.9em;">평균 클릭률</div>
+                        </div>
+                        <div style="text-align: center;">
+                            <div style="font-size: 1.8em; font-weight: bold; color: #ffc107;">${(summary.best_click_rate || 0).toFixed(1)}%</div>
+                            <div style="color: #666; font-size: 0.9em;">최고 클릭률</div>
+                        </div>
+                        <div style="text-align: center;">
+                            <div style="font-size: 1.8em; font-weight: bold; color: #dc3545;">${summary.high_performance_count || 0}</div>
+                            <div style="color: #666; font-size: 0.9em;">고성과 메시지</div>
+                        </div>
+                    </div>
+                `;
+                
+                // CSS 애니메이션 추가
+                const style = document.createElement('style');
+                style.textContent = `
+                    @keyframes slideIn {
+                        from { opacity: 0; transform: translateY(-10px); }
+                        to { opacity: 1; transform: translateY(0); }
+                    }
+                `;
+                document.head.appendChild(style);
+                
+                // 토글 버튼 다음에 추가
+                const toggleButton = document.querySelector('.summary-toggle-btn');
+                if (toggleButton) {
+                    toggleButton.insertAdjacentElement('afterend', summaryOverlay);
+                }
+                
+                console.log('요약 오버레이 표시 완료');
+                
+            } catch (error) {
+                console.error('요약 오버레이 생성 실패:', error);
+            }
+        }
+        
         
         // 인사이트 생성 함수
         async function generateInsights() {
