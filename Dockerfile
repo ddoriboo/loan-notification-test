@@ -1,8 +1,11 @@
-# Use Python 3.8+ as base image
+# Use Python 3.9 as base image
 FROM python:3.9-slim
 
 # Set working directory
 WORKDIR /app
+
+# Force rebuild marker - Updated after cleanup
+ENV REBUILD_MARKER=2025-01-05-cleanup
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -22,8 +25,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code and data
 COPY . .
 
-# Ensure data file exists (Railway deployment)
-RUN if [ ! -f "202507_.csv" ]; then echo "WARNING: 202507_.csv not found. The app will run with limited functionality." > /tmp/warning.log; fi
+# Note: CSV files are uploaded by users - no predefined data files required
+RUN echo "Application ready for CSV upload-based analysis" > /tmp/startup.log
 
 # Create non-root user for security
 RUN adduser --disabled-password --gecos '' appuser && \
